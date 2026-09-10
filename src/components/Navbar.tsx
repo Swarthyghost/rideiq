@@ -15,9 +15,14 @@ export function Navbar() {
       <div className="px-4 sm:px-10 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <Logo size={34} />
-          <span className="text-cream text-[17px] sm:text-[19px] font-extrabold tracking-tight">
-            RiderIQ
-          </span>
+          <div className="flex flex-col leading-tight">
+            <span className="text-cream text-[17px] sm:text-[19px] font-extrabold tracking-tight">
+              RiderIQ
+            </span>
+            <span className="text-cream/65 text-[9px] sm:text-[10px] font-bold uppercase tracking-wide">
+              Work &amp; Pay, Redefined.
+            </span>
+          </div>
         </div>
 
         <div className="hidden sm:flex items-center gap-6">

@@ -32,6 +32,9 @@ export default function LoginPage() {
             <Logo size={64} />
           </div>
           <div className="text-xl font-extrabold tracking-tight">RiderIQ</div>
+          <div className="text-[13.5px] font-extrabold text-[#1f6b45] uppercase tracking-wide">
+            Work &amp; Pay, Redefined.
+          </div>
           <div className="text-sm font-semibold text-muted">Sign in to manage your bikes</div>
         </div>
 
@@ -86,6 +89,10 @@ export default function LoginPage() {
         <div className="flex items-center justify-center gap-1.5 mt-5 text-[12.5px] font-semibold text-muted-2">
           <LockIcon size={13} />
           Private, admin-only access
+        </div>
+
+        <div className="text-center mt-3 text-[12.5px] font-semibold text-muted-2 italic">
+          Empowering the Youth, One Ride at a Time.
         </div>
       </div>
     </div>

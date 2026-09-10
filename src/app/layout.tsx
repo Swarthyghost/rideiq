@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
 import { AuthProvider } from "@/lib/firebase/auth-context";
+import { Footer } from "@/components/Footer";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -18,7 +19,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${manrope.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col font-sans bg-bg text-ink">
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          {children}
+          <Footer />
+        </AuthProvider>
       </body>
     </html>
   );
