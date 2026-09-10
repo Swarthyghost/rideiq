@@ -19,7 +19,10 @@ export function BikeCard({ bike }: { bike: BikeWithPayments }) {
   const next = getNextPaymentInfo(bike.payments, liveStatus, missedCount);
 
   return (
-    <div className="card bg-white border border-border rounded-[14px] p-4 sm:p-5 flex flex-col gap-3 sm:gap-3.5 transition-all hover:shadow-[0_6px_18px_rgba(28,42,36,0.10)] hover:-translate-y-px">
+    <Link
+      href={`/bikes/${bike.id}`}
+      className="card bg-white border border-border rounded-[14px] p-4 sm:p-5 flex flex-col gap-3 sm:gap-3.5 transition-all hover:shadow-[0_6px_18px_rgba(28,42,36,0.10)] hover:-translate-y-px cursor-pointer"
+    >
       <div className="flex items-start justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
           <Avatar name={bike.riderName} photoUrl={bike.riderPhotoUrl} size={38} />
@@ -53,14 +56,11 @@ export function BikeCard({ bike }: { bike: BikeWithPayments }) {
             {next.label}
           </div>
         </div>
-        <Link
-          href={`/bikes/${bike.id}`}
-          className="text-[13px] sm:text-[13.5px] font-bold flex items-center gap-1 text-[#1f6b45] hover:text-[#14532d] self-start sm:self-auto"
-        >
+        <span className="text-[13px] sm:text-[13.5px] font-bold flex items-center gap-1 text-[#1f6b45] self-start sm:self-auto">
           View schedule
           <ChevronRightIcon />
-        </Link>
+        </span>
       </div>
-    </div>
+    </Link>
   );
 }

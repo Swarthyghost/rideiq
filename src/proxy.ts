@@ -21,5 +21,8 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  // Excludes API routes, Next internals, and any path with a file extension
+  // (favicon.ico, logo.webp, and anything else dropped into public/) so
+  // static assets are never gated behind a session cookie.
+  matcher: ["/((?!api|_next/static|_next/image|.*\\..*).*)"],
 };

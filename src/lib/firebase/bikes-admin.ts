@@ -106,16 +106,45 @@ export interface EditableBikeTerms {
   riderName: string;
   riderPhone: string;
   status: Bike["status"];
+  weeklyAmount: number;
+  totalValue: number;
+  riderPhotoUrl?: string | null;
+  idDocUrl?: string | null;
+  contractDocUrl?: string | null;
 }
 
 export async function updateBikeTerms(bikeId: string, terms: EditableBikeTerms): Promise<void> {
-  await bikesCol().doc(bikeId).update({
+  const bikeRef = bikesCol().doc(bikeId);
+  const bikeDoc = await bikeRef.get();
+  if (!bikeDoc.exists) throw new Error("Bike not found");
+  const existing = bikeFromDoc(bikeId, bikeDoc.data()!);
+
+  const patch: Record<string, unknown> = {
     bikeModel: terms.bikeModel,
     plateNumber: terms.plateNumber || null,
     riderName: terms.riderName,
     riderPhone: terms.riderPhone,
     status: terms.status,
-  });
+    weeklyAmount: terms.weeklyAmount,
+    totalValue: terms.totalValue,
+  };
+  if (terms.riderPhotoUrl !== undefined) patch.riderPhotoUrl = terms.riderPhotoUrl;
+  if (terms.idDocUrl !== undefined) patch.idDocUrl = terms.idDocUrl;
+  if (terms.contractDocUrl !== undefined) patch.contractDocUrl = terms.contractDocUrl;
+
+  const batch = adminDb.batch();
+  batch.update(bikeRef, patch);
+
+  // A weekly-payment change only applies going forward: paid weeks keep the
+  // amount that was actually collected, historically.
+  if (terms.weeklyAmount !== existing.weeklyAmount) {
+    const paymentsSnap = await paymentsCol(bikeId).where("status", "!=", "paid").get();
+    for (const doc of paymentsSnap.docs) {
+      batch.update(doc.ref, { amountDue: terms.weeklyAmount });
+    }
+  }
+
+  await batch.commit();
 }
 
 export async function markPaymentPaid(

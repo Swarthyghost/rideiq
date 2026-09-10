@@ -16,9 +16,17 @@ export async function PATCH(
   const riderName = String(body.riderName ?? "").trim();
   const riderPhone = String(body.riderPhone ?? "").trim();
   const status = String(body.status ?? "active");
+  const weeklyAmount = Number(body.weeklyAmount);
+  const totalValue = Number(body.totalValue);
 
   if (!bikeModel || !riderName || !riderPhone) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  }
+  if (!Number.isFinite(weeklyAmount) || weeklyAmount <= 0) {
+    return NextResponse.json({ error: "Invalid weekly amount" }, { status: 400 });
+  }
+  if (!Number.isFinite(totalValue) || totalValue <= 0) {
+    return NextResponse.json({ error: "Invalid total balance" }, { status: 400 });
   }
 
   const validStatuses = ["active", "repossession_flagged", "repossessed", "completed"];
@@ -32,6 +40,11 @@ export async function PATCH(
     riderName,
     riderPhone,
     status: status as "active" | "repossession_flagged" | "repossessed" | "completed",
+    weeklyAmount,
+    totalValue,
+    riderPhotoUrl: "riderPhotoUrl" in body ? body.riderPhotoUrl : undefined,
+    idDocUrl: "idDocUrl" in body ? body.idDocUrl : undefined,
+    contractDocUrl: "contractDocUrl" in body ? body.contractDocUrl : undefined,
   });
 
   return NextResponse.json({ ok: true });

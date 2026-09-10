@@ -2,7 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import { useAuth } from "@/lib/firebase/auth-context";
-import { BikeIcon, LockIcon } from "@/components/icons";
+import { LockIcon } from "@/components/icons";
+import { Logo } from "@/components/Logo";
 
 export default function LoginPage() {
   const { signIn } = useAuth();
@@ -27,8 +28,8 @@ export default function LoginPage() {
     <div className="flex flex-1 items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center gap-3 mb-8">
-          <div className="w-14 h-14 rounded-full bg-brand flex items-center justify-center text-cream">
-            <BikeIcon size={26} />
+          <div className="rounded-full ring-1 ring-border shadow-sm">
+            <Logo size={64} />
           </div>
           <div className="text-xl font-extrabold tracking-tight">RiderIQ</div>
           <div className="text-sm font-semibold text-muted">Sign in to manage your bikes</div>

@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/firebase/auth-context";
-import { BikeIcon, MenuIcon, PlusIcon, CloseIcon } from "@/components/icons";
+import { MenuIcon, PlusIcon, CloseIcon } from "@/components/icons";
+import { Logo } from "@/components/Logo";
 
 export function Navbar() {
   const { signOut } = useAuth();
@@ -13,7 +14,7 @@ export function Navbar() {
     <nav className="bg-brand relative">
       <div className="px-4 sm:px-10 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <BikeIcon size={24} className="text-cream" />
+          <Logo size={34} />
           <span className="text-cream text-[17px] sm:text-[19px] font-extrabold tracking-tight">
             RiderIQ
           </span>
