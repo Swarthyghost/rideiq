@@ -1,6 +1,6 @@
 import { requireSessionUser } from "@/lib/session";
 import { listBikesWithPayments } from "@/lib/firebase/bikes-admin";
-import { collectedTotal, computeLiveMissedCount, computeLiveStatus } from "@/lib/payments";
+import { collectedTotal, computeLiveMissedCount, computeLiveStatus, outstandingTotal } from "@/lib/payments";
 import { formatGHS } from "@/lib/format";
 import { Navbar } from "@/components/Navbar";
 import { StatCard } from "@/components/StatCard";
@@ -35,6 +35,7 @@ export default async function DashboardPage() {
   }, 0);
 
   const totalCollected = bikes.reduce((sum, bike) => sum + collectedTotal(bike.payments), 0);
+  const totalLeft = bikes.reduce((sum, bike) => sum + outstandingTotal(bike.payments), 0);
 
   const inGraceZone = derived.filter(
     (d) => d.liveStatus === "active" && d.missedCount > 0
@@ -59,10 +60,11 @@ export default async function DashboardPage() {
       <Navbar />
 
       <div className="px-4 sm:px-10 py-6 sm:py-9 pb-16 sm:pb-14 flex-1">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4.5 mb-8 sm:mb-9">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4.5 mb-8 sm:mb-9">
           <StatCard label="Active bikes" value={String(activeBikes)} />
           <StatCard label="Collected this month" value={formatGHS(collectedThisMonth)} />
           <StatCard label="Total collected" value={formatGHS(totalCollected)} />
+          <StatCard label="Total amount left" value={formatGHS(totalLeft)} />
           <StatCard
             label="In grace zone"
             value={String(inGraceZone)}
