@@ -2,7 +2,7 @@
 
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { uploadToStorage } from "@/lib/firebase/upload";
+import { tryUploadToStorage } from "@/lib/firebase/upload";
 import { toISODate } from "@/lib/format";
 import { CameraIcon, UploadIcon } from "@/components/icons";
 
@@ -57,11 +57,20 @@ export function AddBikeForm() {
     setSubmitting(true);
     try {
       const folder = `bikes/${Date.now()}`;
-      const [riderPhotoUrl, idDocUrl, contractDocUrl] = await Promise.all([
-        riderPhotoFile ? uploadToStorage(riderPhotoFile, `${folder}/rider-photo`) : Promise.resolve(null),
-        idDocFile ? uploadToStorage(idDocFile, `${folder}/id-doc`) : Promise.resolve(null),
-        contractDocFile ? uploadToStorage(contractDocFile, `${folder}/contract`) : Promise.resolve(null),
+      const [photoResult, idResult, contractResult] = await Promise.all([
+        riderPhotoFile ? tryUploadToStorage(riderPhotoFile, `${folder}/rider-photo`) : Promise.resolve({ url: null, failed: false }),
+        idDocFile ? tryUploadToStorage(idDocFile, `${folder}/id-doc`) : Promise.resolve({ url: null, failed: false }),
+        contractDocFile ? tryUploadToStorage(contractDocFile, `${folder}/contract`) : Promise.resolve({ url: null, failed: false }),
       ]);
+      const riderPhotoUrl = photoResult.url;
+      const idDocUrl = idResult.url;
+      const contractDocUrl = contractResult.url;
+
+      const failedUploads = [
+        photoResult.failed && "rider photo",
+        idResult.failed && "government ID",
+        contractResult.failed && "signed contract",
+      ].filter(Boolean);
 
       const response = await fetch("/api/bikes", {
         method: "POST",
@@ -83,6 +92,11 @@ export function AddBikeForm() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Failed to save bike");
 
+      if (failedUploads.length > 0) {
+        alert(
+          `Bike saved, but the ${failedUploads.join(" and ")} couldn't be uploaded. You can add ${failedUploads.length > 1 ? "them" : "it"} later from the bike's profile.`
+        );
+      }
       router.push(`/bikes/${data.bikeId}`);
     } catch {
       setError("Couldn't save this bike. Check the details and try again.");

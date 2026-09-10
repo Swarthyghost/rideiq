@@ -4,7 +4,7 @@ import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { CloseIcon, CameraIcon, UploadIcon, CheckCircleIcon } from "@/components/icons";
 import { Avatar } from "@/components/Avatar";
-import { uploadToStorage } from "@/lib/firebase/upload";
+import { tryUploadToStorage } from "@/lib/firebase/upload";
 import type { Bike, BikeStatus } from "@/lib/types";
 
 const STATUS_OPTIONS: { value: BikeStatus; label: string }[] = [
@@ -60,11 +60,22 @@ export function EditTermsModal({ bike, onClose }: { bike: Bike; onClose: () => v
     setSaving(true);
     try {
       const folder = `bikes/${bike.id}`;
-      const [riderPhotoUrl, idDocUrl, contractDocUrl] = await Promise.all([
-        riderPhotoFile ? uploadToStorage(riderPhotoFile, `${folder}/rider-photo`) : Promise.resolve(undefined),
-        idDocFile ? uploadToStorage(idDocFile, `${folder}/id-doc`) : Promise.resolve(undefined),
-        contractDocFile ? uploadToStorage(contractDocFile, `${folder}/contract`) : Promise.resolve(undefined),
+      const [photoResult, idResult, contractResult] = await Promise.all([
+        riderPhotoFile ? tryUploadToStorage(riderPhotoFile, `${folder}/rider-photo`) : Promise.resolve({ url: undefined, failed: false }),
+        idDocFile ? tryUploadToStorage(idDocFile, `${folder}/id-doc`) : Promise.resolve({ url: undefined, failed: false }),
+        contractDocFile ? tryUploadToStorage(contractDocFile, `${folder}/contract`) : Promise.resolve({ url: undefined, failed: false }),
       ]);
+      // A failed upload keeps the field untouched (undefined) rather than
+      // wiping out whatever document/photo was already on file.
+      const riderPhotoUrl = photoResult.failed ? undefined : photoResult.url;
+      const idDocUrl = idResult.failed ? undefined : idResult.url;
+      const contractDocUrl = contractResult.failed ? undefined : contractResult.url;
+
+      const failedUploads = [
+        photoResult.failed && "rider photo",
+        idResult.failed && "government ID",
+        contractResult.failed && "signed contract",
+      ].filter(Boolean);
 
       const response = await fetch(`/api/bikes/${bike.id}`, {
         method: "PATCH",
@@ -83,6 +94,12 @@ export function EditTermsModal({ bike, onClose }: { bike: Bike; onClose: () => v
         }),
       });
       if (!response.ok) throw new Error("Failed");
+
+      if (failedUploads.length > 0) {
+        alert(
+          `Changes saved, but the ${failedUploads.join(" and ")} couldn't be uploaded. Try again from here later.`
+        );
+      }
       onClose();
       router.refresh();
     } catch {
