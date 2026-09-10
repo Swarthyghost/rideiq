@@ -126,6 +126,18 @@ export function collectedTotal(payments: Payment[]): number {
     .reduce((sum, p) => sum + p.amountDue, 0);
 }
 
+/**
+ * Sum of every not-yet-paid week's amountDue -- i.e. what's actually still
+ * owed on the schedule as it stands today. Driven by each payment's own
+ * amountDue rather than totalValue, so it stays correct even after a
+ * weekly-payment edit changes the rate partway through the schedule.
+ */
+export function outstandingTotal(payments: Payment[]): number {
+  return payments
+    .filter((p) => p.status !== "paid")
+    .reduce((sum, p) => sum + p.amountDue, 0);
+}
+
 export function paidCount(payments: Payment[]): number {
   return payments.filter((p) => p.status === "paid").length;
 }

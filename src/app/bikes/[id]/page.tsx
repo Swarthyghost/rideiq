@@ -1,7 +1,13 @@
 import { notFound } from "next/navigation";
 import { requireSessionUser } from "@/lib/session";
 import { getBikeWithPayments } from "@/lib/firebase/bikes-admin";
-import { computeGraceStatus, computeLiveMissedCount, computeLiveStatus } from "@/lib/payments";
+import {
+  collectedTotal,
+  computeGraceStatus,
+  computeLiveMissedCount,
+  computeLiveStatus,
+  outstandingTotal,
+} from "@/lib/payments";
 import { getStatusDisplay } from "@/lib/status";
 import { formatDateLong, formatGHS } from "@/lib/format";
 import { BackNav } from "@/components/Navbar";
@@ -25,6 +31,8 @@ export default async function BikeDetailPage({
   const liveStatus = computeLiveStatus(bike, bike.payments, asOf);
   const status = getStatusDisplay(liveStatus, missedCount, bike.graceAllowance);
   const grace = computeGraceStatus(missedCount, bike.graceAllowance);
+  const amountPaid = collectedTotal(bike.payments);
+  const amountLeft = outstandingTotal(bike.payments);
 
   return (
     <div className="flex-1 flex flex-col">
@@ -35,9 +43,11 @@ export default async function BikeDetailPage({
 
         <DocumentsRow idDocUrl={bike.idDocUrl} contractDocUrl={bike.contractDocUrl} />
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-white border border-border rounded-xl px-5 sm:px-5.5 py-4.5 mb-7">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 bg-white border border-border rounded-xl px-5 sm:px-5.5 py-4.5 mb-7">
           <SummaryItem label="Weekly payment" value={formatGHS(bike.weeklyAmount)} />
           <SummaryItem label="Total contract" value={formatGHS(bike.totalValue)} />
+          <SummaryItem label="Amount paid" value={formatGHS(amountPaid)} color="var(--color-status-ok-fg)" />
+          <SummaryItem label="Amount left" value={formatGHS(amountLeft)} color="#3a3630" />
           <SummaryItem label="Start date" value={formatDateLong(bike.startDate)} />
           <SummaryItem label="Schedule" value={`${bike.numPayments} weekly payments`} />
         </div>
@@ -50,11 +60,13 @@ export default async function BikeDetailPage({
   );
 }
 
-function SummaryItem({ label, value }: { label: string; value: string }) {
+function SummaryItem({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div>
       <div className="text-[11.5px] font-bold text-muted uppercase tracking-wide">{label}</div>
-      <div className="text-[16px] font-extrabold mt-1">{value}</div>
+      <div className="text-[16px] font-extrabold mt-1" style={color ? { color } : undefined}>
+        {value}
+      </div>
     </div>
   );
 }
