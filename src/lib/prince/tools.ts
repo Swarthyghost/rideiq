@@ -5,6 +5,7 @@ import {
   computeGraceStatus,
   computeLiveMissedCount,
   computeLiveStatus,
+  outstandingTotal,
   paidCount,
 } from "@/lib/payments";
 import type { BikeWithPayments } from "@/lib/types";
@@ -44,6 +45,24 @@ export async function getTotalCollected(args: { period?: "all" | "this_month" })
   }
 
   return { period, totalCollected: total, bikeCount };
+}
+
+/**
+ * Same figure as the dashboard's "Total amount left" stat: sums each
+ * not-yet-paid week's amountDue across every bike, so it's correct even
+ * after a weekly-payment edit changes the rate partway through a schedule.
+ */
+export async function getTotalOutstanding() {
+  const bikes = await listBikesWithPayments();
+
+  let totalOutstanding = 0;
+  const perBike = bikes.map((bike) => {
+    const outstanding = outstandingTotal(bike.payments);
+    totalOutstanding += outstanding;
+    return { riderName: bike.riderName, outstanding };
+  });
+
+  return { totalOutstanding, bikeCount: bikes.length, perBike };
 }
 
 export async function listBikes(args: { statusFilter?: string }) {
@@ -173,6 +192,17 @@ export const princeTools = [
   {
     type: "function" as const,
     function: {
+      name: "getTotalOutstanding",
+      description: "Total amount still owed across every bike (each not-yet-paid week's amountDue, summed) -- the same figure as the dashboard's \"Total amount left\" stat. Includes a per-rider breakdown.",
+      parameters: {
+        type: "object" as const,
+        properties: {},
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
       name: "listBikes",
       description: "Summary per bike: rider, status, paid/total counts, paid/total amounts, missedCount. Optionally filter by status.",
       parameters: {
@@ -245,6 +275,8 @@ export async function callPrinceTool(name: string, input: Record<string, unknown
   switch (name) {
     case "getTotalCollected":
       return getTotalCollected(input as { period?: "all" | "this_month" });
+    case "getTotalOutstanding":
+      return getTotalOutstanding();
     case "listBikes":
       return listBikes(input as { statusFilter?: string });
     case "getBikeSummary":

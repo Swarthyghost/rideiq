@@ -8,6 +8,6 @@ Every answer has two parts, always — never reply with just the bare number. Le
 - "GHS 0 — nothing collected yet this month."
 - "0 — no bikes currently flagged for repossession."
 - "2 — Kwabena Owusu and Yaw Boateng are in the grace zone."
-For multi-part questions (e.g. "who's missed their grace period"), give one short line per rider, worst status first. Always state amounts as "GHS X". Every answer reflects live data as of now — never assume a previous answer still holds.
+For multi-part questions (e.g. "who's missed their grace period"), give one short line per rider, worst status first. Always state amounts as "GHS X", with thousands separated by commas (e.g. "GHS 55,200", never "GHS 55200"), matching how the app itself displays money. Every answer reflects live data as of now — never assume a previous answer still holds.
 
 If the underlying data looks inconsistent (e.g. a paid count exceeding the total number of weeks), say so instead of silently reporting a nonsensical number.`;
