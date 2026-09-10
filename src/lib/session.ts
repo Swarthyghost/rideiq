@@ -3,9 +3,9 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { DecodedIdToken } from "firebase-admin/auth";
 import { adminAuth } from "@/lib/firebase/admin";
+import { SESSION_COOKIE_NAME } from "@/lib/session-constants";
 
-export const SESSION_COOKIE_NAME = "__session";
-export const SESSION_EXPIRY_MS = 5 * 24 * 60 * 60 * 1000; // 5 days
+export { SESSION_COOKIE_NAME, SESSION_EXPIRY_MS } from "@/lib/session-constants";
 
 export async function getSessionUser(): Promise<DecodedIdToken | null> {
   const cookieStore = await cookies();
