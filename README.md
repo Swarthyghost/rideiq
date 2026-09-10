@@ -8,7 +8,7 @@ A private, admin-only web app for tracking a motorbike hire-purchase business: b
 - Firebase: Firestore, Auth (single admin, email/password), Storage
 - Tailwind CSS
 - Vercel Cron for the daily missed-payment sweep
-- Anthropic API (Claude) for Prince, called server-side only
+- Groq API (GPT-OSS 120B) for Prince, called server-side only
 
 ## 1. Firebase project setup
 
@@ -21,7 +21,7 @@ A private, admin-only web app for tracking a motorbike hire-purchase business: b
 
 ## 2. Environment variables
 
-Copy the example file and fill in the values from step 1, plus your Anthropic API key:
+Copy the example file and fill in the values from step 1, plus your Groq API key (from [console.groq.com/keys](https://console.groq.com/keys)):
 
 ```bash
 cp .env.local.example .env.local
@@ -77,4 +77,4 @@ Visit `http://localhost:3000`, which redirects to `/login`.
 
 ## Prince
 
-Prince (`/api/prince`) is Claude, given a fixed set of read-only tools (`src/lib/prince/tools.ts`) that query Firestore directly — it never answers with a number it didn't get from a tool call. It cannot write to any record; if asked to take an action, it says so and points back to the relevant screen.
+Prince (`/api/prince`) runs on Groq (Llama 3.3 70B), given a fixed set of read-only tools (`src/lib/prince/tools.ts`) that query Firestore directly — it never answers with a number it didn't get from a tool call. It cannot write to any record; if asked to take an action, it says so and points back to the relevant screen.

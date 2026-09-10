@@ -153,69 +153,90 @@ export async function getWeeksRemaining(args: { bikeIdOrRiderName: string }) {
   };
 }
 
+// Groq's chat-completions API is OpenAI-compatible: each tool is
+// { type: "function", function: { name, description, parameters } },
+// where `parameters` is a JSON Schema object.
 export const princeTools = [
   {
-    name: "getTotalCollected",
-    description: "Sum of paid payment amounts across all bikes, optionally filtered to the current calendar month.",
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        period: { type: "string", enum: ["all", "this_month"], description: "Defaults to 'all'." },
-      },
-    },
-  },
-  {
-    name: "listBikes",
-    description: "Summary per bike: rider, status, paid/total counts, paid/total amounts, missedCount. Optionally filter by status.",
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        statusFilter: {
-          type: "string",
-          enum: ["active", "repossession_flagged", "repossessed", "completed"],
+    type: "function" as const,
+    function: {
+      name: "getTotalCollected",
+      description: "Sum of paid payment amounts across all bikes, optionally filtered to the current calendar month.",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          period: { type: "string", enum: ["all", "this_month"], description: "Defaults to 'all'." },
         },
       },
     },
   },
   {
-    name: "getBikeSummary",
-    description: "Full detail for one bike: weekly amount, total value, paid amount/count, remaining amount/count, weeks remaining, status, missedCount, grace remaining. Accepts a bike id or a rider name.",
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        bikeIdOrRiderName: { type: "string" },
+    type: "function" as const,
+    function: {
+      name: "listBikes",
+      description: "Summary per bike: rider, status, paid/total counts, paid/total amounts, missedCount. Optionally filter by status.",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          statusFilter: {
+            type: "string",
+            enum: ["active", "repossession_flagged", "repossessed", "completed"],
+          },
+        },
       },
-      required: ["bikeIdOrRiderName"],
     },
   },
   {
-    name: "getGraceStatus",
-    description: "missedCount, graceAllowance, graceRemaining, and whether the bike is flagged, for one bike. Accepts a bike id or a rider name.",
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        bikeIdOrRiderName: { type: "string" },
+    type: "function" as const,
+    function: {
+      name: "getBikeSummary",
+      description: "Full detail for one bike: weekly amount, total value, paid amount/count, remaining amount/count, weeks remaining, status, missedCount, grace remaining. Accepts a bike id or a rider name.",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          bikeIdOrRiderName: { type: "string" },
+        },
+        required: ["bikeIdOrRiderName"],
       },
-      required: ["bikeIdOrRiderName"],
     },
   },
   {
-    name: "listFlaggedForRepossession",
-    description: "Lists every bike currently flagged for repossession (missed count exceeds grace allowance).",
-    input_schema: {
-      type: "object" as const,
-      properties: {},
+    type: "function" as const,
+    function: {
+      name: "getGraceStatus",
+      description: "missedCount, graceAllowance, graceRemaining, and whether the bike is flagged, for one bike. Accepts a bike id or a rider name.",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          bikeIdOrRiderName: { type: "string" },
+        },
+        required: ["bikeIdOrRiderName"],
+      },
     },
   },
   {
-    name: "getWeeksRemaining",
-    description: "Weeks (payments) remaining on one bike's schedule. Accepts a bike id or a rider name.",
-    input_schema: {
-      type: "object" as const,
-      properties: {
-        bikeIdOrRiderName: { type: "string" },
+    type: "function" as const,
+    function: {
+      name: "listFlaggedForRepossession",
+      description: "Lists every bike currently flagged for repossession (missed count exceeds grace allowance).",
+      parameters: {
+        type: "object" as const,
+        properties: {},
       },
-      required: ["bikeIdOrRiderName"],
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "getWeeksRemaining",
+      description: "Weeks (payments) remaining on one bike's schedule. Accepts a bike id or a rider name.",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          bikeIdOrRiderName: { type: "string" },
+        },
+        required: ["bikeIdOrRiderName"],
+      },
     },
   },
 ];

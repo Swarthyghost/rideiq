@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+import Groq from "groq-sdk";
+import type { ChatCompletionMessageParam } from "groq-sdk/resources/chat/completions";
 import { requireApiUser } from "@/lib/session";
 import { PRINCE_SYSTEM_PROMPT } from "@/lib/prince/systemPrompt";
 import { princeTools, callPrinceTool } from "@/lib/prince/tools";
 
-const MODEL = "claude-sonnet-5";
+const MODEL = "openai/gpt-oss-120b";
 const MAX_TOOL_ROUNDS = 6;
 
 interface ChatMessage {
@@ -16,9 +17,9 @@ export async function POST(request: Request) {
   const user = await requireApiUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
-    return NextResponse.json({ error: "Prince is not configured (missing ANTHROPIC_API_KEY)." }, { status: 500 });
+    return NextResponse.json({ error: "Prince is not configured (missing GROQ_API_KEY)." }, { status: 500 });
   }
 
   const { messages } = (await request.json()) as { messages: ChatMessage[] };
@@ -26,51 +27,53 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing messages" }, { status: 400 });
   }
 
-  const anthropic = new Anthropic({ apiKey });
+  const groq = new Groq({ apiKey });
 
-  const history: Anthropic.MessageParam[] = messages.map((m) => ({
-    role: m.role,
-    content: m.content,
-  }));
+  const history: ChatCompletionMessageParam[] = [
+    { role: "system", content: PRINCE_SYSTEM_PROMPT },
+    ...messages.map((m): ChatCompletionMessageParam => ({ role: m.role, content: m.content })),
+  ];
 
   try {
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-      const response = await anthropic.messages.create({
+      const response = await groq.chat.completions.create({
         model: MODEL,
         max_tokens: 1024,
-        system: PRINCE_SYSTEM_PROMPT,
         tools: princeTools,
         messages: history,
       });
 
-      const toolUseBlocks = response.content.filter(
-        (block): block is Anthropic.ToolUseBlock => block.type === "tool_use"
-      );
+      const message = response.choices[0]?.message;
+      const toolCalls = message?.tool_calls ?? [];
 
-      if (toolUseBlocks.length === 0) {
-        const textBlock = response.content.find(
-          (block): block is Anthropic.TextBlock => block.type === "text"
-        );
-        return NextResponse.json({ reply: textBlock?.text ?? "" });
+      if (toolCalls.length === 0) {
+        return NextResponse.json({ reply: message?.content ?? "" });
       }
 
-      history.push({ role: "assistant", content: response.content });
+      history.push({
+        role: "assistant",
+        content: message.content,
+        tool_calls: toolCalls,
+      });
 
-      const toolResults: Anthropic.ToolResultBlockParam[] = await Promise.all(
-        toolUseBlocks.map(async (block) => {
-          const result = await callPrinceTool(
-            block.name,
-            block.input as Record<string, unknown>
-          );
+      const toolResults = await Promise.all(
+        toolCalls.map(async (call) => {
+          let args: Record<string, unknown> = {};
+          try {
+            args = JSON.parse(call.function.arguments);
+          } catch {
+            // Leave args empty if the model produced malformed JSON.
+          }
+          const result = await callPrinceTool(call.function.name, args);
           return {
-            type: "tool_result" as const,
-            tool_use_id: block.id,
+            role: "tool" as const,
+            tool_call_id: call.id,
             content: JSON.stringify(result),
           };
         })
       );
 
-      history.push({ role: "user", content: toolResults });
+      history.push(...toolResults);
     }
 
     return NextResponse.json({
