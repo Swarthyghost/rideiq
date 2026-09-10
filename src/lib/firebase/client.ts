@@ -1,7 +1,7 @@
 import { getApps, initializeApp, type FirebaseOptions } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+import { getAuth, type Auth } from "firebase/auth";
+import { getFirestore, type Firestore } from "firebase/firestore";
+import { getStorage, type FirebaseStorage } from "firebase/storage";
 
 const firebaseConfig: FirebaseOptions = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -12,9 +12,26 @@ const firebaseConfig: FirebaseOptions = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-export const firebaseApp =
-  getApps()[0] ?? initializeApp(firebaseConfig);
+export const firebaseApp = getApps()[0] ?? initializeApp(firebaseConfig);
 
-export const auth = getAuth(firebaseApp);
-export const db = getFirestore(firebaseApp);
-export const storage = getStorage(firebaseApp);
+// getAuth/getFirestore/getStorage validate the config (e.g. throw
+// auth/invalid-api-key) the moment they're called. Next.js statically
+// prerenders /login at build time, which imports this module — so calling
+// them eagerly here means a build with unset NEXT_PUBLIC_FIREBASE_* env vars
+// (a misconfigured Vercel project, a fresh checkout with no .env.local)
+// crashes the whole build instead of failing at runtime, in the browser,
+// where it's actually actionable. Deferring the call until first use avoids
+// that class of failure without changing how callers import `auth`/`db`/`storage`.
+function lazy<T extends object>(factory: () => T): T {
+  let instance: T | undefined;
+  return new Proxy({} as T, {
+    get(_target, prop, receiver) {
+      if (!instance) instance = factory();
+      return Reflect.get(instance as object, prop, receiver);
+    },
+  });
+}
+
+export const auth: Auth = lazy(() => getAuth(firebaseApp));
+export const db: Firestore = lazy(() => getFirestore(firebaseApp));
+export const storage: FirebaseStorage = lazy(() => getStorage(firebaseApp));
