@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireSessionUser } from "@/lib/session";
 import { getBikeWithPayments } from "@/lib/firebase/bikes-admin";
-import { computeLiveMissedCount, computeLiveStatus } from "@/lib/payments";
+import { computeGraceStatus, computeLiveMissedCount, computeLiveStatus } from "@/lib/payments";
 import { getStatusDisplay } from "@/lib/status";
 import { formatDateLong, formatGHS } from "@/lib/format";
 import { BackNav } from "@/components/Navbar";
@@ -24,13 +24,14 @@ export default async function BikeDetailPage({
   const missedCount = computeLiveMissedCount(bike.payments, asOf);
   const liveStatus = computeLiveStatus(bike, bike.payments, asOf);
   const status = getStatusDisplay(liveStatus, missedCount, bike.graceAllowance);
+  const grace = computeGraceStatus(missedCount, bike.graceAllowance);
 
   return (
     <div className="flex-1 flex flex-col">
       <BackNav />
 
       <div className="px-4 sm:px-10 py-6 sm:py-8 pb-14 max-w-[1100px] w-full mx-auto">
-        <BikeDetailHeader bike={bike} status={status} />
+        <BikeDetailHeader bike={bike} status={status} grace={grace} />
 
         <DocumentsRow idDocUrl={bike.idDocUrl} contractDocUrl={bike.contractDocUrl} />
 

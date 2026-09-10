@@ -4,10 +4,20 @@ import { useState } from "react";
 import { Avatar } from "@/components/Avatar";
 import { StatusPill } from "@/components/StatusPill";
 import { EditTermsModal } from "@/components/EditTermsModal";
+import { GraceIndicator } from "@/components/GraceIndicator";
 import type { StatusDisplay } from "@/lib/status";
+import type { GraceStatus } from "@/lib/payments";
 import type { Bike } from "@/lib/types";
 
-export function BikeDetailHeader({ bike, status }: { bike: Bike; status: StatusDisplay }) {
+export function BikeDetailHeader({
+  bike,
+  status,
+  grace,
+}: {
+  bike: Bike;
+  status: StatusDisplay;
+  grace: GraceStatus;
+}) {
   const [editing, setEditing] = useState(false);
 
   return (
@@ -33,6 +43,8 @@ export function BikeDetailHeader({ bike, status }: { bike: Bike; status: StatusD
           </button>
         </div>
       </div>
+
+      <GraceIndicator grace={grace} />
 
       {editing && <EditTermsModal bike={bike} onClose={() => setEditing(false)} />}
     </>

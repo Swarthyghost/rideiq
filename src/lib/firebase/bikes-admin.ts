@@ -186,6 +186,49 @@ export async function markPaymentPaid(
   });
 }
 
+/**
+ * Manually flags the current-due payment as missed, ahead of the automatic
+ * overdue sweep -- lets the admin record a grace strike immediately instead
+ * of waiting for the next daily run. Only valid for a payment that isn't
+ * already paid.
+ */
+export async function markPaymentMissed(
+  bikeId: string,
+  weekNumber: number,
+  reason: string | null
+): Promise<void> {
+  const paymentRef = paymentsCol(bikeId).doc(String(weekNumber));
+  const paymentDoc = await paymentRef.get();
+  if (!paymentDoc.exists) throw new Error("Payment not found");
+
+  const payment = paymentFromDoc(paymentDoc.data()!);
+  if (payment.status === "paid") throw new Error("This week has already been paid");
+
+  const todayISO = toISODate(new Date());
+  await paymentRef.update({
+    status: "missed",
+    missedDate: payment.missedDate ?? todayISO,
+    reason: reason ?? payment.reason,
+  });
+
+  const bikeDoc = await bikesCol().doc(bikeId).get();
+  if (!bikeDoc.exists) return;
+  const bike = bikeFromDoc(bikeId, bikeDoc.data()!);
+  const paymentsSnap = await paymentsCol(bikeId).orderBy("weekNumber").get();
+  const payments = paymentsSnap.docs.map((p) => paymentFromDoc(p.data()));
+  const plan = planSweep(bike, payments, new Date());
+
+  const batch = adminDb.batch();
+  for (const update of plan.paymentUpdates) {
+    batch.update(paymentsCol(bikeId).doc(String(update.weekNumber)), update.patch);
+  }
+  batch.update(bikesCol().doc(bikeId), {
+    missedCount: plan.newMissedCount,
+    status: plan.newStatus,
+  });
+  await batch.commit();
+}
+
 export interface SweepResult {
   bikesScanned: number;
   paymentsMarkedMissed: number;
