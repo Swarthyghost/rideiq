@@ -36,12 +36,23 @@ export async function POST(request: Request) {
 
   try {
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-      const response = await groq.chat.completions.create({
-        model: MODEL,
-        max_tokens: 1024,
-        tools: princeTools,
-        messages: history,
-      });
+      let response;
+      try {
+        response = await groq.chat.completions.create({
+          model: MODEL,
+          max_tokens: 1024,
+          tools: princeTools,
+          messages: history,
+        });
+      } catch (err) {
+        // gpt-oss-120b occasionally hallucinates a slightly-misspelled tool
+        // name, which Groq rejects at the API level (400, before any message
+        // comes back) rather than letting the model see and self-correct.
+        // History is unchanged, so just retrying resamples a fresh
+        // generation -- bounded by the existing round budget above.
+        console.error(`Prince: model call failed on round ${round}, retrying:`, err);
+        continue;
+      }
 
       const message = response.choices[0]?.message;
       const toolCalls = message?.tool_calls ?? [];
