@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { CloseIcon, CameraIcon, UploadIcon, CheckCircleIcon } from "@/components/icons";
 import { Avatar } from "@/components/Avatar";
@@ -279,6 +279,19 @@ function DocSlot({
   onChange: (file: File | null) => void;
 }) {
   const hasDoc = Boolean(file || existingUrl);
+
+  // A freshly-picked file hasn't been uploaded yet, so there's no URL for it
+  // from the server -- preview it locally via an object URL instead, so
+  // "View" works before the change is even saved.
+  const localPreviewUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
+  useEffect(() => {
+    return () => {
+      if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl);
+    };
+  }, [localPreviewUrl]);
+
+  const viewUrl = file ? localPreviewUrl : existingUrl;
+
   return (
     <div className="border-2 border-dashed border-border-input rounded-[10px] px-3.5 py-4 text-center bg-bg">
       <input
@@ -298,9 +311,9 @@ function DocSlot({
         {file ? file.name : existingUrl ? "On file" : "No file uploaded"}
       </div>
       <div className="flex items-center justify-center gap-3 mt-2">
-        {existingUrl && !file && (
+        {viewUrl && (
           <a
-            href={existingUrl}
+            href={viewUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="text-[12px] font-bold text-[#1f6b45] hover:text-[#14532d]"

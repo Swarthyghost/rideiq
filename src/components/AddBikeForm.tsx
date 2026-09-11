@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { tryUploadToCloudinary } from "@/lib/cloudinary/upload";
 import { toISODate } from "@/lib/format";
@@ -284,12 +284,17 @@ function Dropzone({
   inputRef: React.RefObject<HTMLInputElement | null>;
   onChange: (file: File | null) => void;
 }) {
+  // No server URL exists yet at this point (the bike hasn't been created),
+  // so "View" previews the picked file locally via an object URL.
+  const previewUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
   return (
-    <button
-      type="button"
-      onClick={() => inputRef.current?.click()}
-      className="border-2 border-dashed border-border-input rounded-[10px] px-3.5 py-5.5 text-center bg-bg cursor-pointer hover:border-[#1f6b45]/40"
-    >
+    <div className="border-2 border-dashed border-border-input rounded-[10px] px-3.5 py-5 text-center bg-bg hover:border-[#1f6b45]/40">
       <input
         ref={inputRef}
         type="file"
@@ -297,11 +302,23 @@ function Dropzone({
         onChange={(e) => onChange(e.target.files?.[0] ?? null)}
         className="hidden"
       />
-      <UploadIcon size={22} className="mx-auto text-muted-2" />
-      <div className="text-[13px] font-bold mt-2.5">{label}</div>
-      <div className="text-[11.5px] text-muted-2 font-semibold mt-0.5 truncate">
-        {file ? file.name : "PNG, JPG or PDF"}
-      </div>
-    </button>
+      <button type="button" onClick={() => inputRef.current?.click()} className="w-full cursor-pointer">
+        <UploadIcon size={22} className="mx-auto text-muted-2" />
+        <div className="text-[13px] font-bold mt-2.5">{label}</div>
+        <div className="text-[11.5px] text-muted-2 font-semibold mt-0.5 truncate">
+          {file ? file.name : "PNG, JPG or PDF"}
+        </div>
+      </button>
+      {previewUrl && (
+        <a
+          href={previewUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-block text-[12px] font-bold text-[#1f6b45] hover:text-[#14532d] mt-2"
+        >
+          View
+        </a>
+      )}
+    </div>
   );
 }
