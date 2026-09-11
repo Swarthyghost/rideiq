@@ -1,7 +1,6 @@
 import { cert, getApps, initializeApp, type App } from "firebase-admin/app";
 import { getAuth, type Auth } from "firebase-admin/auth";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
-import { getStorage, type Storage } from "firebase-admin/storage";
 
 // Lazily initialized so that merely importing this module (e.g. while Next.js
 // collects route metadata at build time) never requires real credentials —
@@ -28,7 +27,6 @@ function getAdminApp(): App {
 
   app = initializeApp({
     credential: cert({ projectId, clientEmail, privateKey }),
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
   });
   return app;
 }
@@ -45,4 +43,3 @@ function lazy<T extends object>(factory: () => T): T {
 
 export const adminAuth: Auth = lazy(() => getAuth(getAdminApp()));
 export const adminDb: Firestore = lazy(() => getFirestore(getAdminApp()));
-export const adminStorage: Storage = lazy(() => getStorage(getAdminApp()));

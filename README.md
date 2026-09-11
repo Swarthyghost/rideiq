@@ -5,7 +5,8 @@ A private, admin-only web app for tracking a motorbike hire-purchase business: b
 ## Stack
 
 - Next.js (App Router) on Vercel
-- Firebase: Firestore, Auth (single admin, email/password), Storage
+- Firebase: Firestore, Auth (single admin, email/password)
+- Cloudinary for rider photo / government ID / signed contract uploads
 - Tailwind CSS
 - Vercel Cron for the daily missed-payment sweep
 - Groq API (GPT-OSS 120B) for Prince, called server-side only
@@ -15,27 +16,31 @@ A private, admin-only web app for tracking a motorbike hire-purchase business: b
 1. Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com).
 2. Enable **Authentication → Email/Password**.
 3. Enable **Firestore** (in production mode — rules are provided in this repo).
-4. Enable **Storage**.
-5. Add a **Web app** to the project (Project settings → General → Your apps) and copy the config values into `.env.local` (see below).
-6. Go to **Project settings → Service accounts → Generate new private key** to get the Admin SDK credentials, also into `.env.local`.
+4. Add a **Web app** to the project (Project settings → General → Your apps) and copy the config values into `.env.local` (see below).
+5. Go to **Project settings → Service accounts → Generate new private key** to get the Admin SDK credentials, also into `.env.local`.
 
-## 2. Environment variables
+## 2. Cloudinary setup
 
-Copy the example file and fill in the values from step 1, plus your Groq API key (from [console.groq.com/keys](https://console.groq.com/keys)):
+1. Create a free account at [cloudinary.com](https://cloudinary.com).
+2. On the dashboard home, copy your **Cloud name**, **API Key**, and **API Secret** into `.env.local` (see below). No upload preset or extra configuration needed — uploads are signed server-side (`/api/cloudinary/sign`) using these three values.
+
+## 3. Environment variables
+
+Copy the example file and fill in the values from steps 1–2, plus your Groq API key (from [console.groq.com/keys](https://console.groq.com/keys)):
 
 ```bash
 cp .env.local.example .env.local
 ```
 
-## 3. Install dependencies
+## 4. Install dependencies
 
 ```bash
 npm install
 ```
 
-## 4. Create the admin account
+## 5. Create the admin account
 
-There is no public sign-up flow. Create the single admin user (and set the custom claim that Firestore/Storage rules check) with:
+There is no public sign-up flow. Create the single admin user (and set the custom claim that Firestore rules check) with:
 
 ```bash
 ADMIN_EMAIL=you@business.com ADMIN_PASSWORD='a-strong-password' npm run setup-admin
@@ -43,18 +48,18 @@ ADMIN_EMAIL=you@business.com ADMIN_PASSWORD='a-strong-password' npm run setup-ad
 
 This reads the Firebase Admin credentials from `.env.local`. Re-run it any time to reset the admin password.
 
-## 5. Deploy Firestore & Storage security rules
+## 6. Deploy Firestore security rules
 
-Both `firestore.rules` and `storage.rules` restrict all reads/writes to the authenticated admin (checked via the `admin: true` custom claim set by the script above) — no public access.
+`firestore.rules` restricts all reads/writes to the authenticated admin (checked via the `admin: true` custom claim set by the script above) — no public access.
 
 ```bash
 npm install -g firebase-tools   # if you don't have it
 firebase login
 firebase use --add               # select your Firebase project
-firebase deploy --only firestore:rules,storage:rules
+firebase deploy --only firestore:rules
 ```
 
-## 6. Run locally
+## 7. Run locally
 
 ```bash
 npm run dev
@@ -62,7 +67,7 @@ npm run dev
 
 Visit `http://localhost:3000`, which redirects to `/login`.
 
-## 7. Deploy to Vercel
+## 8. Deploy to Vercel
 
 1. Push this repo to GitHub and import it into Vercel.
 2. Add all the variables from `.env.local` (except `ADMIN_EMAIL`/`ADMIN_PASSWORD`, which are only needed locally for the setup script) as Vercel Environment Variables.
@@ -77,4 +82,8 @@ Visit `http://localhost:3000`, which redirects to `/login`.
 
 ## Prince
 
-Prince (`/api/prince`) runs on Groq (Llama 3.3 70B), given a fixed set of read-only tools (`src/lib/prince/tools.ts`) that query Firestore directly — it never answers with a number it didn't get from a tool call. It cannot write to any record; if asked to take an action, it says so and points back to the relevant screen.
+Prince (`/api/prince`) runs on Groq (GPT-OSS 120B), given a fixed set of read-only tools (`src/lib/prince/tools.ts`) that query Firestore directly — it never answers with a number it didn't get from a tool call. It cannot write to any record; if asked to take an action, it says so and points back to the relevant screen.
+
+## Document uploads
+
+Rider photo, government ID, and signed contract files go straight from the browser to Cloudinary. `/api/cloudinary/sign` (authenticated) returns a short-lived signature; the client then uploads directly to Cloudinary with it, so the API secret never reaches the browser. A failed upload (bad config, network hiccup) doesn't block saving the rest of the form — see `tryUploadToCloudinary` in `src/lib/cloudinary/upload.ts`.

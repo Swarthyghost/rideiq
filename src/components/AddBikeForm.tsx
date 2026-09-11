@@ -2,7 +2,7 @@
 
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { tryUploadToStorage } from "@/lib/firebase/upload";
+import { tryUploadToCloudinary } from "@/lib/cloudinary/upload";
 import { toISODate } from "@/lib/format";
 import { CameraIcon, UploadIcon } from "@/components/icons";
 
@@ -58,9 +58,9 @@ export function AddBikeForm() {
     try {
       const folder = `bikes/${Date.now()}`;
       const [photoResult, idResult, contractResult] = await Promise.all([
-        riderPhotoFile ? tryUploadToStorage(riderPhotoFile, `${folder}/rider-photo`) : Promise.resolve({ url: null, failed: false }),
-        idDocFile ? tryUploadToStorage(idDocFile, `${folder}/id-doc`) : Promise.resolve({ url: null, failed: false }),
-        contractDocFile ? tryUploadToStorage(contractDocFile, `${folder}/contract`) : Promise.resolve({ url: null, failed: false }),
+        riderPhotoFile ? tryUploadToCloudinary(riderPhotoFile, `${folder}/rider-photo`) : Promise.resolve({ url: null, failed: false }),
+        idDocFile ? tryUploadToCloudinary(idDocFile, `${folder}/id-doc`) : Promise.resolve({ url: null, failed: false }),
+        contractDocFile ? tryUploadToCloudinary(contractDocFile, `${folder}/contract`) : Promise.resolve({ url: null, failed: false }),
       ]);
       const riderPhotoUrl = photoResult.url;
       const idDocUrl = idResult.url;

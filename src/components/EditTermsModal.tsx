@@ -4,7 +4,7 @@ import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { CloseIcon, CameraIcon, UploadIcon, CheckCircleIcon } from "@/components/icons";
 import { Avatar } from "@/components/Avatar";
-import { tryUploadToStorage } from "@/lib/firebase/upload";
+import { tryUploadToCloudinary } from "@/lib/cloudinary/upload";
 import type { Bike, BikeStatus } from "@/lib/types";
 
 const STATUS_OPTIONS: { value: BikeStatus; label: string }[] = [
@@ -61,9 +61,9 @@ export function EditTermsModal({ bike, onClose }: { bike: Bike; onClose: () => v
     try {
       const folder = `bikes/${bike.id}`;
       const [photoResult, idResult, contractResult] = await Promise.all([
-        riderPhotoFile ? tryUploadToStorage(riderPhotoFile, `${folder}/rider-photo`) : Promise.resolve({ url: undefined, failed: false }),
-        idDocFile ? tryUploadToStorage(idDocFile, `${folder}/id-doc`) : Promise.resolve({ url: undefined, failed: false }),
-        contractDocFile ? tryUploadToStorage(contractDocFile, `${folder}/contract`) : Promise.resolve({ url: undefined, failed: false }),
+        riderPhotoFile ? tryUploadToCloudinary(riderPhotoFile, `${folder}/rider-photo`) : Promise.resolve({ url: undefined, failed: false }),
+        idDocFile ? tryUploadToCloudinary(idDocFile, `${folder}/id-doc`) : Promise.resolve({ url: undefined, failed: false }),
+        contractDocFile ? tryUploadToCloudinary(contractDocFile, `${folder}/contract`) : Promise.resolve({ url: undefined, failed: false }),
       ]);
       // A failed upload keeps the field untouched (undefined) rather than
       // wiping out whatever document/photo was already on file.
