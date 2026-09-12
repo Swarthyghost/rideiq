@@ -28,6 +28,10 @@ export function AddBikeForm() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [photoProgress, setPhotoProgress] = useState<number | null>(null);
+  const [idProgress, setIdProgress] = useState<number | null>(null);
+  const [contractProgress, setContractProgress] = useState<number | null>(null);
+
   const photoInputRef = useRef<HTMLInputElement>(null);
   const idInputRef = useRef<HTMLInputElement>(null);
   const contractInputRef = useRef<HTMLInputElement>(null);
@@ -55,12 +59,15 @@ export function AddBikeForm() {
     }
 
     setSubmitting(true);
+    setPhotoProgress(riderPhotoFile ? 0 : null);
+    setIdProgress(idDocFile ? 0 : null);
+    setContractProgress(contractDocFile ? 0 : null);
     try {
       const folder = `bikes/${Date.now()}`;
       const [photoResult, idResult, contractResult] = await Promise.all([
-        riderPhotoFile ? tryUploadToCloudinary(riderPhotoFile, `${folder}/rider-photo`) : Promise.resolve({ url: null, failed: false }),
-        idDocFile ? tryUploadToCloudinary(idDocFile, `${folder}/id-doc`) : Promise.resolve({ url: null, failed: false }),
-        contractDocFile ? tryUploadToCloudinary(contractDocFile, `${folder}/contract`) : Promise.resolve({ url: null, failed: false }),
+        riderPhotoFile ? tryUploadToCloudinary(riderPhotoFile, `${folder}/rider-photo`, setPhotoProgress) : Promise.resolve({ url: null, failed: false }),
+        idDocFile ? tryUploadToCloudinary(idDocFile, `${folder}/id-doc`, setIdProgress) : Promise.resolve({ url: null, failed: false }),
+        contractDocFile ? tryUploadToCloudinary(contractDocFile, `${folder}/contract`, setContractProgress) : Promise.resolve({ url: null, failed: false }),
       ]);
       const riderPhotoUrl = photoResult.url;
       const idDocUrl = idResult.url;
@@ -101,6 +108,9 @@ export function AddBikeForm() {
     } catch {
       setError("Couldn't save this bike. Check the details and try again.");
       setSubmitting(false);
+      setPhotoProgress(null);
+      setIdProgress(null);
+      setContractProgress(null);
     }
   }
 
@@ -172,16 +182,22 @@ export function AddBikeForm() {
           />
           <div>
             <div className="text-sm font-bold">Rider photo</div>
-            <div className="text-[12.5px] text-muted font-semibold mt-0.5">
-              Shown next to their name on the dashboard.
-            </div>
-            <button
-              type="button"
-              onClick={() => photoInputRef.current?.click()}
-              className="text-[13px] font-bold text-[#1f6b45] hover:text-[#14532d] mt-1.5 cursor-pointer"
-            >
-              Upload photo
-            </button>
+            {photoProgress !== null ? (
+              <div className="text-[13px] font-bold text-[#1f6b45] mt-1">{photoProgress}% uploaded</div>
+            ) : (
+              <>
+                <div className="text-[12.5px] text-muted font-semibold mt-0.5">
+                  Shown next to their name on the dashboard.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  className="text-[13px] font-bold text-[#1f6b45] hover:text-[#14532d] mt-1.5 cursor-pointer"
+                >
+                  Upload photo
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -233,12 +249,14 @@ export function AddBikeForm() {
           <Dropzone
             label="Government ID"
             file={idDocFile}
+            progress={idProgress}
             inputRef={idInputRef}
             onChange={(f) => setIdDocFile(f)}
           />
           <Dropzone
             label="Signed contract"
             file={contractDocFile}
+            progress={contractProgress}
             inputRef={contractInputRef}
             onChange={(f) => setContractDocFile(f)}
           />
@@ -276,11 +294,13 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function Dropzone({
   label,
   file,
+  progress,
   inputRef,
   onChange,
 }: {
   label: string;
   file: File | null;
+  progress: number | null;
   inputRef: React.RefObject<HTMLInputElement | null>;
   onChange: (file: File | null) => void;
 }) {
@@ -305,11 +325,14 @@ function Dropzone({
       <button type="button" onClick={() => inputRef.current?.click()} className="w-full cursor-pointer">
         <UploadIcon size={22} className="mx-auto text-muted-2" />
         <div className="text-[13px] font-bold mt-2.5">{label}</div>
-        <div className="text-[11.5px] text-muted-2 font-semibold mt-0.5 truncate">
-          {file ? file.name : "PNG, JPG or PDF"}
+        <div
+          className="text-[11.5px] font-semibold mt-0.5 truncate"
+          style={{ color: progress !== null ? "#1f6b45" : "var(--color-muted-2)" }}
+        >
+          {progress !== null ? `${progress}% uploaded` : file ? file.name : "PNG, JPG or PDF"}
         </div>
       </button>
-      {previewUrl && (
+      {previewUrl && progress === null && (
         <a
           href={previewUrl}
           target="_blank"

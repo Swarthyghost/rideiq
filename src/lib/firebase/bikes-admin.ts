@@ -64,6 +64,24 @@ export async function getBikeWithPayments(bikeId: string): Promise<BikeWithPayme
   return { ...bike, payments };
 }
 
+export interface BikeDocUrls {
+  riderPhotoUrl: string | null;
+  idDocUrl: string | null;
+  contractDocUrl: string | null;
+}
+
+/** Lighter than getBikeWithPayments -- skips the payments subcollection fetch for routes that only need to know where a document lives. */
+export async function getBikeDocUrls(bikeId: string): Promise<BikeDocUrls | null> {
+  const doc = await bikesCol().doc(bikeId).get();
+  if (!doc.exists) return null;
+  const data = doc.data()!;
+  return {
+    riderPhotoUrl: data.riderPhotoUrl ?? null,
+    idDocUrl: data.idDocUrl ?? null,
+    contractDocUrl: data.contractDocUrl ?? null,
+  };
+}
+
 export const DEFAULT_GRACE_ALLOWANCE = 3;
 
 export async function createBike(input: NewBikeInput): Promise<string> {

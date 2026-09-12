@@ -41,7 +41,7 @@ export default async function BikeDetailPage({
       <div className="px-4 sm:px-10 py-6 sm:py-8 pb-14 max-w-[1100px] w-full mx-auto">
         <BikeDetailHeader bike={bike} status={status} grace={grace} />
 
-        <DocumentsRow idDocUrl={bike.idDocUrl} contractDocUrl={bike.contractDocUrl} />
+        <DocumentsRow bikeId={bike.id} hasIdDoc={!!bike.idDocUrl} hasContractDoc={!!bike.contractDocUrl} />
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 bg-white border border-border rounded-xl px-5 sm:px-5.5 py-4.5 mb-7">
           <SummaryItem label="Weekly payment" value={formatGHS(bike.weeklyAmount)} />

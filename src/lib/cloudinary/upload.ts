@@ -21,7 +21,16 @@ async function getSignature(folder: string): Promise<SignResponse> {
   return response.json();
 }
 
-export async function uploadToCloudinary(file: File, folder: string): Promise<string> {
+/**
+ * fetch() has no reliable cross-browser way to report upload progress for
+ * a request body, so this uses XMLHttpRequest specifically to drive
+ * onProgress (0-100) while the file is in flight.
+ */
+export async function uploadToCloudinary(
+  file: File,
+  folder: string,
+  onProgress?: (percent: number) => void
+): Promise<string> {
   const { signature, timestamp, apiKey, cloudName } = await getSignature(folder);
 
   const formData = new FormData();
@@ -31,13 +40,34 @@ export async function uploadToCloudinary(file: File, folder: string): Promise<st
   formData.append("signature", signature);
   formData.append("folder", folder);
 
-  const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
-    method: "POST",
-    body: formData,
+  return new Promise<string>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`);
+
+    xhr.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable && onProgress) {
+        onProgress(Math.round((event.loaded / event.total) * 100));
+      }
+    });
+
+    xhr.addEventListener("load", () => {
+      let data: { secure_url?: string; error?: { message?: string } } = {};
+      try {
+        data = JSON.parse(xhr.responseText);
+      } catch {
+        // fall through to the status check below with an empty payload
+      }
+      if (xhr.status >= 200 && xhr.status < 300 && data.secure_url) {
+        onProgress?.(100);
+        resolve(data.secure_url);
+      } else {
+        reject(new Error(data.error?.message ?? "Upload failed"));
+      }
+    });
+
+    xhr.addEventListener("error", () => reject(new Error("Network error during upload")));
+    xhr.send(formData);
   });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error?.message ?? "Upload failed");
-  return data.secure_url as string;
 }
 
 export interface UploadResult {
@@ -51,9 +81,13 @@ export interface UploadResult {
  * form submitted alongside it. Callers surface `failed` as a warning and
  * proceed with `url: null` for that field.
  */
-export async function tryUploadToCloudinary(file: File, folder: string): Promise<UploadResult> {
+export async function tryUploadToCloudinary(
+  file: File,
+  folder: string,
+  onProgress?: (percent: number) => void
+): Promise<UploadResult> {
   try {
-    const url = await uploadToCloudinary(file, folder);
+    const url = await uploadToCloudinary(file, folder, onProgress);
     return { url, failed: false };
   } catch (err) {
     console.error(`Upload to ${folder} failed:`, err);

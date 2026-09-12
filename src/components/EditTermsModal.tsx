@@ -31,6 +31,10 @@ export function EditTermsModal({ bike, onClose }: { bike: Bike; onClose: () => v
   const [idDocFile, setIdDocFile] = useState<File | null>(null);
   const [contractDocFile, setContractDocFile] = useState<File | null>(null);
 
+  const [photoProgress, setPhotoProgress] = useState<number | null>(null);
+  const [idProgress, setIdProgress] = useState<number | null>(null);
+  const [contractProgress, setContractProgress] = useState<number | null>(null);
+
   const photoInputRef = useRef<HTMLInputElement>(null);
   const idInputRef = useRef<HTMLInputElement>(null);
   const contractInputRef = useRef<HTMLInputElement>(null);
@@ -58,12 +62,21 @@ export function EditTermsModal({ bike, onClose }: { bike: Bike; onClose: () => v
     }
 
     setSaving(true);
+    setPhotoProgress(riderPhotoFile ? 0 : null);
+    setIdProgress(idDocFile ? 0 : null);
+    setContractProgress(contractDocFile ? 0 : null);
     try {
       const folder = `bikes/${bike.id}`;
       const [photoResult, idResult, contractResult] = await Promise.all([
-        riderPhotoFile ? tryUploadToCloudinary(riderPhotoFile, `${folder}/rider-photo`) : Promise.resolve({ url: undefined, failed: false }),
-        idDocFile ? tryUploadToCloudinary(idDocFile, `${folder}/id-doc`) : Promise.resolve({ url: undefined, failed: false }),
-        contractDocFile ? tryUploadToCloudinary(contractDocFile, `${folder}/contract`) : Promise.resolve({ url: undefined, failed: false }),
+        riderPhotoFile
+          ? tryUploadToCloudinary(riderPhotoFile, `${folder}/rider-photo`, setPhotoProgress)
+          : Promise.resolve({ url: undefined, failed: false }),
+        idDocFile
+          ? tryUploadToCloudinary(idDocFile, `${folder}/id-doc`, setIdProgress)
+          : Promise.resolve({ url: undefined, failed: false }),
+        contractDocFile
+          ? tryUploadToCloudinary(contractDocFile, `${folder}/contract`, setContractProgress)
+          : Promise.resolve({ url: undefined, failed: false }),
       ]);
       // A failed upload keeps the field untouched (undefined) rather than
       // wiping out whatever document/photo was already on file.
@@ -105,6 +118,9 @@ export function EditTermsModal({ bike, onClose }: { bike: Bike; onClose: () => v
     } catch {
       setError("Couldn't save changes. Try again.");
       setSaving(false);
+      setPhotoProgress(null);
+      setIdProgress(null);
+      setContractProgress(null);
     }
   }
 
@@ -151,13 +167,17 @@ export function EditTermsModal({ bike, onClose }: { bike: Bike; onClose: () => v
           />
           <div>
             <div className="text-sm font-bold">Rider photo</div>
-            <button
-              type="button"
-              onClick={() => photoInputRef.current?.click()}
-              className="text-[13px] font-bold text-[#1f6b45] hover:text-[#14532d] mt-1 cursor-pointer"
-            >
-              Change photo
-            </button>
+            {photoProgress !== null ? (
+              <div className="text-[13px] font-bold text-[#1f6b45] mt-1">{photoProgress}% uploaded</div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => photoInputRef.current?.click()}
+                className="text-[13px] font-bold text-[#1f6b45] hover:text-[#14532d] mt-1 cursor-pointer"
+              >
+                Change photo
+              </button>
+            )}
           </div>
         </div>
 
@@ -224,6 +244,8 @@ export function EditTermsModal({ bike, onClose }: { bike: Bike; onClose: () => v
               label="Government ID"
               file={idDocFile}
               existingUrl={bike.idDocUrl}
+              viewHref={`/api/documents/${bike.id}/id-doc`}
+              progress={idProgress}
               inputRef={idInputRef}
               onChange={setIdDocFile}
             />
@@ -231,6 +253,8 @@ export function EditTermsModal({ bike, onClose }: { bike: Bike; onClose: () => v
               label="Signed contract"
               file={contractDocFile}
               existingUrl={bike.contractDocUrl}
+              viewHref={`/api/documents/${bike.id}/contract`}
+              progress={contractProgress}
               inputRef={contractInputRef}
               onChange={setContractDocFile}
             />
@@ -269,12 +293,17 @@ function DocSlot({
   label,
   file,
   existingUrl,
+  viewHref,
+  progress,
   inputRef,
   onChange,
 }: {
   label: string;
   file: File | null;
   existingUrl: string | null;
+  /** Proxy path (never a raw Cloudinary URL) for viewing the already-saved document. */
+  viewHref: string;
+  progress: number | null;
   inputRef: React.RefObject<HTMLInputElement | null>;
   onChange: (file: File | null) => void;
 }) {
@@ -290,7 +319,7 @@ function DocSlot({
     };
   }, [localPreviewUrl]);
 
-  const viewUrl = file ? localPreviewUrl : existingUrl;
+  const viewUrl = file ? localPreviewUrl : existingUrl ? viewHref : null;
 
   return (
     <div className="border-2 border-dashed border-border-input rounded-[10px] px-3.5 py-4 text-center bg-bg">
@@ -307,28 +336,30 @@ function DocSlot({
         <UploadIcon size={20} className="mx-auto text-muted-2" />
       )}
       <div className="text-[13px] font-bold mt-2">{label}</div>
-      <div className="text-[11.5px] text-muted-2 font-semibold mt-0.5 truncate">
-        {file ? file.name : existingUrl ? "On file" : "No file uploaded"}
+      <div className="text-[11.5px] font-semibold mt-0.5 truncate" style={{ color: progress !== null ? "#1f6b45" : "var(--color-muted-2)" }}>
+        {progress !== null ? `${progress}% uploaded` : file ? file.name : existingUrl ? "On file" : "No file uploaded"}
       </div>
-      <div className="flex items-center justify-center gap-3 mt-2">
-        {viewUrl && (
-          <a
-            href={viewUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[12px] font-bold text-[#1f6b45] hover:text-[#14532d]"
+      {progress === null && (
+        <div className="flex items-center justify-center gap-3 mt-2">
+          {viewUrl && (
+            <a
+              href={viewUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[12px] font-bold text-[#1f6b45] hover:text-[#14532d]"
+            >
+              View
+            </a>
+          )}
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className="text-[12px] font-bold text-[#1f6b45] hover:text-[#14532d] cursor-pointer"
           >
-            View
-          </a>
-        )}
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="text-[12px] font-bold text-[#1f6b45] hover:text-[#14532d] cursor-pointer"
-        >
-          {hasDoc ? "Replace" : "Upload"}
-        </button>
-      </div>
+            {hasDoc ? "Replace" : "Upload"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
