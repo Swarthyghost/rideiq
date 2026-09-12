@@ -63,7 +63,7 @@ export function PrinceChatPanel({ open, onClose }: { open: boolean; onClose: () 
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/35" onClick={onClose} />
 
-      <div className="relative w-full max-w-[420px] h-full bg-bg shadow-2xl flex flex-col border-l border-border">
+      <div className="relative w-full sm:max-w-[420px] h-dvh bg-bg shadow-2xl flex flex-col border-border sm:border-l">
         <div className="bg-brand px-5 py-4.5 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-[38px] h-[38px] rounded-full bg-white/[0.16] border border-white/40 flex items-center justify-center text-cream">

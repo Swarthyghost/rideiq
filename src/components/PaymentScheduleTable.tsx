@@ -57,27 +57,111 @@ export function PaymentScheduleTable({ bikeId, payments }: { bikeId: string; pay
     setPendingAction({ weekNumber: payment.weekNumber, kind: "missed" });
   }
 
+  const rows = payments.map((payment) => {
+    const isEarliest = payment.weekNumber === earliestOutstandingWeek;
+    const display = getPaymentRowDisplay(payment, isEarliest);
+    const isPendingRow = pendingAction?.weekNumber === payment.weekNumber;
+    // "Mark missed" is only offered on the current due row, before it's
+    // actually overdue -- once it's already missed there's nothing left to mark.
+    const canMarkMissed = isEarliest && display.statusLabel === "Due now";
+    return { payment, display, isPendingRow, canMarkMissed };
+  });
+
   return (
-    <div className="bg-white border border-border rounded-xl overflow-hidden mb-7">
-      <div className="overflow-x-auto">
-        <div className="min-w-[640px]">
-          <div className="grid grid-cols-[60px_1.2fr_1fr_1fr_230px] px-5 py-3 bg-panel text-[11.5px] font-extrabold text-muted uppercase tracking-wide">
-            <div>Wk</div>
-            <div>Due date</div>
-            <div>Amount</div>
-            <div>Status</div>
-            <div></div>
+    <div className="mb-7">
+      {/* Mobile: stacked cards */}
+      <div className="flex flex-col gap-3 sm:hidden">
+        {rows.map(({ payment, display, isPendingRow, canMarkMissed }) => (
+          <div key={payment.weekNumber} className="bg-white border border-border rounded-xl p-4">
+            <div className="flex items-center justify-between gap-2 flex-wrap mb-2.5">
+              <span className="text-[13.5px] font-extrabold">
+                Week {payment.weekNumber} — {formatDateLong(payment.dueDate)}
+              </span>
+              <span
+                className="text-xs font-extrabold px-2.5 py-1 rounded-full flex-shrink-0"
+                style={{ background: display.bg, color: display.fg }}
+              >
+                {display.statusLabel}
+              </span>
+            </div>
+
+            <div className="text-[13px] font-semibold text-muted mb-3">{formatGHS(payment.amountDue)}</div>
+
+            {(display.showMark || canMarkMissed) && !isPendingRow && (
+              <div className="flex items-center gap-2">
+                {display.showMark && (
+                  <button
+                    onClick={() => handleMarkPaidClick(payment)}
+                    disabled={submitting === payment.weekNumber}
+                    className="flex-1 bg-[#1f6b45] hover:opacity-85 text-white rounded-[7px] px-3.5 py-2 font-bold text-[12.5px] cursor-pointer disabled:opacity-50"
+                  >
+                    {submitting === payment.weekNumber ? "Saving…" : "Mark paid"}
+                  </button>
+                )}
+                {canMarkMissed && (
+                  <button
+                    onClick={() => handleMarkMissedClick(payment)}
+                    disabled={submitting === payment.weekNumber}
+                    className="flex-1 bg-white border border-[#e0b4af] hover:bg-status-flagged-bg text-[#a3271f] rounded-[7px] px-3.5 py-2 font-bold text-[12.5px] cursor-pointer disabled:opacity-50"
+                  >
+                    Mark missed
+                  </button>
+                )}
+              </div>
+            )}
+
+            {isPendingRow && pendingAction && (
+              <div className="flex flex-col gap-2 bg-bg border border-border rounded-lg px-3 py-2.5">
+                <input
+                  autoFocus
+                  type="text"
+                  value={reasonText}
+                  onChange={(e) => setReasonText(e.target.value)}
+                  placeholder={
+                    pendingAction.kind === "missed"
+                      ? "Reason this week was missed (optional)"
+                      : "Reason for the missed week (optional)"
+                  }
+                  className="w-full text-[13px] font-semibold bg-white border border-border-input rounded-md px-2.5 py-1.5 focus:outline-none focus:border-[#1f6b45]"
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => commitAction(payment.weekNumber, pendingAction.kind, reasonText.trim() || null)}
+                    disabled={submitting === payment.weekNumber}
+                    className={
+                      pendingAction.kind === "missed"
+                        ? "flex-1 bg-[#a3271f] text-white rounded-md px-3 py-1.5 font-bold text-[12.5px] cursor-pointer disabled:opacity-50"
+                        : "flex-1 bg-[#1f6b45] text-white rounded-md px-3 py-1.5 font-bold text-[12.5px] cursor-pointer disabled:opacity-50"
+                    }
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    onClick={() => setPendingAction(null)}
+                    className="text-muted font-bold text-[12.5px] cursor-pointer px-2"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
+        ))}
+      </div>
 
-          {payments.map((payment) => {
-            const isEarliest = payment.weekNumber === earliestOutstandingWeek;
-            const display = getPaymentRowDisplay(payment, isEarliest);
-            const isPendingRow = pendingAction?.weekNumber === payment.weekNumber;
-            // "Mark missed" is only offered on the current due row, before it's
-            // actually overdue -- once it's already missed there's nothing left to mark.
-            const canMarkMissed = isEarliest && display.statusLabel === "Due now";
+      {/* Tablet and up: table */}
+      <div className="hidden sm:block bg-white border border-border rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <div className="min-w-[640px]">
+            <div className="grid grid-cols-[60px_1.2fr_1fr_1fr_230px] px-5 py-3 bg-panel text-[11.5px] font-extrabold text-muted uppercase tracking-wide">
+              <div>Wk</div>
+              <div>Due date</div>
+              <div>Amount</div>
+              <div>Status</div>
+              <div></div>
+            </div>
 
-            return (
+            {rows.map(({ payment, display, isPendingRow, canMarkMissed }) => (
               <div
                 key={payment.weekNumber}
                 className="grid grid-cols-[60px_1.2fr_1fr_1fr_230px] px-5 py-3 border-t border-hairline items-center text-sm hover:bg-bg"
@@ -114,7 +198,7 @@ export function PaymentScheduleTable({ bikeId, payments }: { bikeId: string; pay
                   )}
                 </div>
 
-                {isPendingRow && (
+                {isPendingRow && pendingAction && (
                   <div className="col-span-5 mt-2.5 -mb-1 flex items-center gap-2 bg-bg border border-border rounded-lg px-3 py-2.5">
                     <input
                       autoFocus
@@ -148,13 +232,13 @@ export function PaymentScheduleTable({ bikeId, payments }: { bikeId: string; pay
                   </div>
                 )}
               </div>
-            );
-          })}
+            ))}
+          </div>
         </div>
       </div>
 
       {error && (
-        <div className="px-5 py-3 border-t border-hairline text-[13px] font-semibold text-[#a3271f] bg-status-flagged-bg">
+        <div className="mt-3 px-5 py-3 border border-border rounded-lg text-[13px] font-semibold text-[#a3271f] bg-status-flagged-bg">
           {error}
         </div>
       )}
