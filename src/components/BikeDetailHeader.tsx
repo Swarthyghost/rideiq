@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Avatar } from "@/components/Avatar";
+import { ZoomableAvatar } from "@/components/ZoomableAvatar";
 import { StatusPill } from "@/components/StatusPill";
 import { EditTermsModal } from "@/components/EditTermsModal";
 import { GraceIndicator } from "@/components/GraceIndicator";
@@ -24,7 +24,7 @@ export function BikeDetailHeader({
     <>
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-5.5">
         <div className="flex items-center gap-4">
-          <Avatar name={bike.riderName} photoUrl={bike.riderPhotoUrl} size={56} />
+          <ZoomableAvatar name={bike.riderName} photoUrl={bike.riderPhotoUrl} size={56} />
           <div>
             <div className="text-[21px] sm:text-[23px] font-extrabold">{bike.riderName}</div>
             <div className="text-sm text-muted font-semibold mt-1">
