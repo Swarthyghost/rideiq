@@ -77,11 +77,21 @@ export function PaymentScheduleTable({ bikeId, payments }: { bikeId: string; pay
               <span className="text-[13.5px] font-extrabold">
                 Week {payment.weekNumber} — {formatDateLong(payment.dueDate)}
               </span>
-              <span
-                className="text-xs font-extrabold px-2.5 py-1 rounded-full flex-shrink-0"
-                style={{ background: display.bg, color: display.fg }}
-              >
-                {display.statusLabel}
+              <span className="flex items-center gap-1.5 flex-shrink-0">
+                <span
+                  className="text-xs font-extrabold px-2.5 py-1 rounded-full"
+                  style={{ background: display.bg, color: display.fg }}
+                >
+                  {display.statusLabel}
+                </span>
+                {display.wasMissed && (
+                <span
+                  className="text-xs font-extrabold px-2.5 py-1 rounded-full "
+                  style={{ background: "var(--color-status-flagged-bg)", color: "var(--color-status-flagged-fg)" }}
+                >
+                  Missed
+                </span>
+              )}
               </span>
             </div>
 
@@ -169,13 +179,21 @@ export function PaymentScheduleTable({ bikeId, payments }: { bikeId: string; pay
                 <div className="font-bold text-muted">{payment.weekNumber}</div>
                 <div className="font-semibold">{formatDateLong(payment.dueDate)}</div>
                 <div className="font-semibold">{formatGHS(payment.amountDue)}</div>
-                <div>
+                <div className="flex items-center gap-1.5">
                   <span
                     className="text-xs font-extrabold px-2.5 py-1 rounded-full"
                     style={{ background: display.bg, color: display.fg }}
                   >
                     {display.statusLabel}
                   </span>
+                  {display.wasMissed && (
+                <span
+                  className="text-xs font-extrabold px-2.5 py-1 rounded-full "
+                  style={{ background: "var(--color-status-flagged-bg)", color: "var(--color-status-flagged-fg)" }}
+                >
+                  Missed
+                </span>
+              )}
                 </div>
                 <div className="flex items-center gap-2">
                   {display.showMark && !isPendingRow && (

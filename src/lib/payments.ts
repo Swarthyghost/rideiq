@@ -33,14 +33,15 @@ export function isPastDue(dueDate: string, asOf: Date): boolean {
 }
 
 /**
- * Live-computed missed count: payments already flagged 'missed' in Firestore,
- * plus any 'pending' payment now past due that the cron sweep hasn't caught yet.
- * This is what makes the dashboard accurate even between cron runs.
+ * Live-computed missed count. A missed week is a permanent grace strike: once a
+ * payment has ever been flagged missed (missedDate set), it keeps counting even
+ * after the rider makes it up. Also counts any 'pending' payment now past due
+ * that the cron sweep hasn't caught yet, so the dashboard stays accurate between runs.
  */
 export function computeLiveMissedCount(payments: Payment[], asOf: Date): number {
   let count = 0;
   for (const p of payments) {
-    if (p.status === "missed") count++;
+    if (p.status === "missed" || p.missedDate !== null) count++;
     else if (p.status === "pending" && isPastDue(p.dueDate, asOf)) count++;
   }
   return count;

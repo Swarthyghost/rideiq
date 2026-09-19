@@ -101,6 +101,8 @@ export interface PaymentRowDisplay {
   bg: string;
   fg: string;
   showMark: boolean;
+  /** Paid, but only after being flagged missed -- the missed marker stays on the row. */
+  wasMissed: boolean;
 }
 
 export function getPaymentRowDisplay(
@@ -108,17 +110,17 @@ export function getPaymentRowDisplay(
   isEarliestOutstanding: boolean
 ): PaymentRowDisplay {
   if (payment.status === "paid") {
-    return { statusLabel: "Paid", bg: "var(--color-status-ok-bg)", fg: "var(--color-status-ok-fg)", showMark: false };
+    return { statusLabel: "Paid", bg: "var(--color-status-ok-bg)", fg: "var(--color-status-ok-fg)", showMark: false, wasMissed: payment.missedDate !== null };
   }
 
   const overdue = payment.status === "missed" || isPastDue(payment.dueDate, new Date());
   if (overdue) {
-    return { statusLabel: "Missed", bg: "var(--color-status-flagged-bg)", fg: "var(--color-status-flagged-fg)", showMark: true };
+    return { statusLabel: "Missed", bg: "var(--color-status-flagged-bg)", fg: "var(--color-status-flagged-fg)", showMark: true, wasMissed: false };
   }
 
   if (isEarliestOutstanding) {
-    return { statusLabel: "Due now", bg: "var(--color-status-grace-bg)", fg: "var(--color-status-grace-fg)", showMark: true };
+    return { statusLabel: "Due now", bg: "var(--color-status-grace-bg)", fg: "var(--color-status-grace-fg)", showMark: true, wasMissed: false };
   }
 
-  return { statusLabel: "Upcoming", bg: "#f0ede4", fg: "#8a8474", showMark: false };
+  return { statusLabel: "Upcoming", bg: "#f0ede4", fg: "#8a8474", showMark: false, wasMissed: false };
 }
