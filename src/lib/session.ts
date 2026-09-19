@@ -19,6 +19,11 @@ export async function getSessionUser(): Promise<DecodedIdToken | null> {
   }
 }
 
+/** Demo sessions (signed in via the "Try the demo" button) carry a custom `demo` claim. */
+export function isDemoUser(user: DecodedIdToken): boolean {
+  return user.demo === true;
+}
+
 /** For use in Server Components / pages: redirects to /login if not signed in. */
 export async function requireSessionUser(): Promise<DecodedIdToken> {
   const user = await getSessionUser();

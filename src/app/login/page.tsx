@@ -6,11 +6,12 @@ import { LockIcon } from "@/components/icons";
 import { Logo } from "@/components/Logo";
 
 export default function LoginPage() {
-  const { signIn } = useAuth();
+  const { signIn, signInDemo } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -21,6 +22,17 @@ export default function LoginPage() {
     } catch {
       setError("Incorrect email or password.");
       setSubmitting(false);
+    }
+  }
+
+  async function handleDemo() {
+    setError(null);
+    setDemoLoading(true);
+    try {
+      await signInDemo();
+    } catch {
+      setError("Couldn't start the demo. Try again.");
+      setDemoLoading(false);
     }
   }
 
@@ -85,6 +97,18 @@ export default function LoginPage() {
             {submitting ? "Signing in…" : "Sign in"}
           </button>
         </form>
+
+        <div className="mt-5 text-center">
+          <div className="text-[12.5px] font-semibold text-muted-2 mb-2">Just looking around?</div>
+          <button
+            type="button"
+            onClick={handleDemo}
+            disabled={demoLoading || submitting}
+            className="w-full bg-white border border-border-input text-[#3a3630] font-extrabold text-[14.5px] rounded-[9px] py-3 hover:bg-panel disabled:opacity-60 transition-colors cursor-pointer"
+          >
+            {demoLoading ? "Starting demo…" : "Try the demo"}
+          </button>
+        </div>
 
         <div className="flex items-center justify-center gap-1.5 mt-5 text-[12.5px] font-semibold text-muted-2">
           <LockIcon size={13} />

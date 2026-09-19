@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireApiUser } from "@/lib/session";
+import { isDemoUser, requireApiUser } from "@/lib/session";
 import { markPaymentPaid } from "@/lib/firebase/bikes-admin";
 
 export async function POST(request: Request) {
@@ -15,6 +15,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  await markPaymentPaid(bikeId, weekNumber, reason);
+  await markPaymentPaid(bikeId, weekNumber, reason, isDemoUser(user));
   return NextResponse.json({ ok: true });
 }

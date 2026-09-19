@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import Groq from "groq-sdk";
 import type { ChatCompletionMessageParam } from "groq-sdk/resources/chat/completions";
-import { requireApiUser } from "@/lib/session";
+import { isDemoUser, requireApiUser } from "@/lib/session";
 import { PRINCE_SYSTEM_PROMPT } from "@/lib/prince/systemPrompt";
 import { princeTools, callPrinceTool } from "@/lib/prince/tools";
 
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
           } catch {
             // Leave args empty if the model produced malformed JSON.
           }
-          const result = await callPrinceTool(call.function.name, args);
+          const result = await callPrinceTool(call.function.name, args, isDemoUser(user));
           return {
             role: "tool" as const,
             tool_call_id: call.id,

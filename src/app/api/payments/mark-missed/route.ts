@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireApiUser } from "@/lib/session";
+import { isDemoUser, requireApiUser } from "@/lib/session";
 import { markPaymentMissed } from "@/lib/firebase/bikes-admin";
 
 export async function POST(request: Request) {
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    await markPaymentMissed(bikeId, weekNumber, reason);
+    await markPaymentMissed(bikeId, weekNumber, reason, isDemoUser(user));
     return NextResponse.json({ ok: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to mark payment missed";

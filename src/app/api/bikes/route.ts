@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireApiUser } from "@/lib/session";
+import { isDemoUser, requireApiUser } from "@/lib/session";
 import { createBike } from "@/lib/firebase/bikes-admin";
 import type { NewBikeInput } from "@/lib/types";
 
@@ -47,6 +47,6 @@ export async function POST(request: Request) {
     capitalInvested,
   };
 
-  const bikeId = await createBike(input);
+  const bikeId = await createBike(input, isDemoUser(user));
   return NextResponse.json({ ok: true, bikeId });
 }

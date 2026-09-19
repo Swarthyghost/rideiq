@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { createHash } from "crypto";
-import { requireApiUser } from "@/lib/session";
+import { isDemoUser, requireApiUser } from "@/lib/session";
 
 export async function POST(request: Request) {
   const user = await requireApiUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  if (isDemoUser(user)) {
+    return NextResponse.json({ error: "Uploads are turned off in the demo." }, { status: 403 });
+  }
 
   const apiKey = process.env.CLOUDINARY_API_KEY;
   const apiSecret = process.env.CLOUDINARY_API_SECRET;

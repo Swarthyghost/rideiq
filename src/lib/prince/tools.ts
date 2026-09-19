@@ -10,8 +10,8 @@ import {
 } from "@/lib/payments";
 import type { BikeWithPayments } from "@/lib/types";
 
-async function findBike(idOrRiderName: string): Promise<BikeWithPayments | null> {
-  const bikes = await listBikesWithPayments();
+async function findBike(idOrRiderName: string, demo: boolean): Promise<BikeWithPayments | null> {
+  const bikes = await listBikesWithPayments(demo);
   const byId = bikes.find((b) => b.id === idOrRiderName);
   if (byId) return byId;
 
@@ -23,9 +23,9 @@ async function findBike(idOrRiderName: string): Promise<BikeWithPayments | null>
   return partial.length === 1 ? partial[0] : partial[0] ?? null;
 }
 
-export async function getTotalCollected(args: { period?: "all" | "this_month" }) {
+export async function getTotalCollected(args: { period?: "all" | "this_month" }, demo: boolean) {
   const period = args.period ?? "all";
-  const bikes = await listBikesWithPayments();
+  const bikes = await listBikesWithPayments(demo);
   const now = new Date();
 
   let total = 0;
@@ -52,8 +52,8 @@ export async function getTotalCollected(args: { period?: "all" | "this_month" })
  * not-yet-paid week's amountDue across every bike, so it's correct even
  * after a weekly-payment edit changes the rate partway through a schedule.
  */
-export async function getTotalOutstanding() {
-  const bikes = await listBikesWithPayments();
+export async function getTotalOutstanding(demo: boolean) {
+  const bikes = await listBikesWithPayments(demo);
 
   let totalOutstanding = 0;
   const perBike = bikes.map((bike) => {
@@ -65,8 +65,8 @@ export async function getTotalOutstanding() {
   return { totalOutstanding, bikeCount: bikes.length, perBike };
 }
 
-export async function listBikes(args: { statusFilter?: string }) {
-  const bikes = await listBikesWithPayments();
+export async function listBikes(args: { statusFilter?: string }, demo: boolean) {
+  const bikes = await listBikesWithPayments(demo);
   const asOf = new Date();
 
   const summaries = bikes.map((bike) => {
@@ -94,8 +94,8 @@ export async function listBikes(args: { statusFilter?: string }) {
   return { bikes: filtered };
 }
 
-export async function getBikeSummary(args: { bikeIdOrRiderName: string }) {
-  const bike = await findBike(args.bikeIdOrRiderName);
+export async function getBikeSummary(args: { bikeIdOrRiderName: string }, demo: boolean) {
+  const bike = await findBike(args.bikeIdOrRiderName, demo);
   if (!bike) return { error: `No bike or rider found matching "${args.bikeIdOrRiderName}"` };
 
   const asOf = new Date();
@@ -127,8 +127,8 @@ export async function getBikeSummary(args: { bikeIdOrRiderName: string }) {
   };
 }
 
-export async function getGraceStatus(args: { bikeIdOrRiderName: string }) {
-  const bike = await findBike(args.bikeIdOrRiderName);
+export async function getGraceStatus(args: { bikeIdOrRiderName: string }, demo: boolean) {
+  const bike = await findBike(args.bikeIdOrRiderName, demo);
   if (!bike) return { error: `No bike or rider found matching "${args.bikeIdOrRiderName}"` };
 
   const missedCount = computeLiveMissedCount(bike.payments, new Date());
@@ -141,8 +141,8 @@ export async function getGraceStatus(args: { bikeIdOrRiderName: string }) {
   };
 }
 
-export async function listFlaggedForRepossession() {
-  const bikes = await listBikesWithPayments();
+export async function listFlaggedForRepossession(demo: boolean) {
+  const bikes = await listBikesWithPayments(demo);
   const asOf = new Date();
 
   const flagged = bikes
@@ -158,8 +158,8 @@ export async function listFlaggedForRepossession() {
   return { flagged };
 }
 
-export async function getWeeksRemaining(args: { bikeIdOrRiderName: string }) {
-  const bike = await findBike(args.bikeIdOrRiderName);
+export async function getWeeksRemaining(args: { bikeIdOrRiderName: string }, demo: boolean) {
+  const bike = await findBike(args.bikeIdOrRiderName, demo);
   if (!bike) return { error: `No bike or rider found matching "${args.bikeIdOrRiderName}"` };
 
   const paid = paidCount(bike.payments);
@@ -271,22 +271,22 @@ export const princeTools = [
   },
 ];
 
-export async function callPrinceTool(name: string, input: Record<string, unknown>) {
+export async function callPrinceTool(name: string, input: Record<string, unknown>, demo: boolean) {
   switch (name) {
     case "getTotalCollected":
-      return getTotalCollected(input as { period?: "all" | "this_month" });
+      return getTotalCollected(input as { period?: "all" | "this_month" }, demo);
     case "getTotalOutstanding":
-      return getTotalOutstanding();
+      return getTotalOutstanding(demo);
     case "listBikes":
-      return listBikes(input as { statusFilter?: string });
+      return listBikes(input as { statusFilter?: string }, demo);
     case "getBikeSummary":
-      return getBikeSummary(input as { bikeIdOrRiderName: string });
+      return getBikeSummary(input as { bikeIdOrRiderName: string }, demo);
     case "getGraceStatus":
-      return getGraceStatus(input as { bikeIdOrRiderName: string });
+      return getGraceStatus(input as { bikeIdOrRiderName: string }, demo);
     case "listFlaggedForRepossession":
-      return listFlaggedForRepossession();
+      return listFlaggedForRepossession(demo);
     case "getWeeksRemaining":
-      return getWeeksRemaining(input as { bikeIdOrRiderName: string });
+      return getWeeksRemaining(input as { bikeIdOrRiderName: string }, demo);
     default:
       return { error: `Unknown tool: ${name}` };
   }

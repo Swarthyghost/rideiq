@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireApiUser } from "@/lib/session";
+import { isDemoUser, requireApiUser } from "@/lib/session";
 import { getBikeDocUrls, type BikeDocUrls } from "@/lib/firebase/bikes-admin";
 
 const FIELD_BY_DOC_TYPE: Record<string, keyof BikeDocUrls> = {
@@ -25,7 +25,7 @@ export async function GET(
   const field = FIELD_BY_DOC_TYPE[docType];
   if (!field) return NextResponse.json({ error: "Invalid document type" }, { status: 400 });
 
-  const docs = await getBikeDocUrls(bikeId);
+  const docs = await getBikeDocUrls(bikeId, isDemoUser(user));
   const sourceUrl = docs?.[field];
   if (!sourceUrl) return NextResponse.json({ error: "Document not found" }, { status: 404 });
 

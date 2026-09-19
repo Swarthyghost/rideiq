@@ -3,9 +3,11 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import {
   onAuthStateChanged,
+  signInWithCustomToken,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   type User,
+  type UserCredential,
 } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase/client";
@@ -14,6 +16,7 @@ interface AuthContextValue {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
+  signInDemo: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -31,8 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  async function signIn(email: string, password: string) {
-    const credential = await signInWithEmailAndPassword(auth, email, password);
+  async function startSession(credential: UserCredential) {
     const idToken = await credential.user.getIdToken();
     const response = await fetch("/api/session", {
       method: "POST",
@@ -47,6 +49,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.refresh();
   }
 
+  async function signIn(email: string, password: string) {
+    await startSession(await signInWithEmailAndPassword(auth, email, password));
+  }
+
+  async function signInDemo() {
+    const response = await fetch("/api/demo/login", { method: "POST" });
+    if (!response.ok) throw new Error("Could not start the demo.");
+    const { token } = await response.json();
+    await startSession(await signInWithCustomToken(auth, token));
+  }
+
   async function signOut() {
     await fetch("/api/session", { method: "DELETE" });
     await firebaseSignOut(auth);
@@ -55,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signInDemo, signOut }}>
       {children}
     </AuthContext.Provider>
   );

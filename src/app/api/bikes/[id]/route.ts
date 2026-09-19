@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireApiUser } from "@/lib/session";
+import { isDemoUser, requireApiUser } from "@/lib/session";
 import { updateBikeTerms } from "@/lib/firebase/bikes-admin";
 
 export async function PATCH(
@@ -55,7 +55,7 @@ export async function PATCH(
     idDocUrl: "idDocUrl" in body ? body.idDocUrl : undefined,
     contractDocUrl: "contractDocUrl" in body ? body.contractDocUrl : undefined,
     capitalInvested,
-  });
+  }, isDemoUser(user));
 
   return NextResponse.json({ ok: true });
 }

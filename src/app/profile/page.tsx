@@ -1,15 +1,17 @@
 import Link from "next/link";
-import { requireSessionUser } from "@/lib/session";
+import { isDemoUser, requireSessionUser } from "@/lib/session";
 import { getOwnerProfile, listBikesWithPayments } from "@/lib/firebase/bikes-admin";
 import { computeRoi, formatPercent } from "@/lib/payments";
 import { formatGHS } from "@/lib/format";
+import { DemoBanner } from "@/components/DemoBanner";
 import { BackNav } from "@/components/Navbar";
 import { Avatar } from "@/components/Avatar";
 import { OwnerProfileForm } from "@/components/OwnerProfileForm";
 
 export default async function ProfilePage() {
   const user = await requireSessionUser();
-  const [profile, bikes] = await Promise.all([getOwnerProfile(user.uid), listBikesWithPayments()]);
+  const demo = isDemoUser(user);
+  const [profile, bikes] = await Promise.all([getOwnerProfile(user.uid), listBikesWithPayments(demo)]);
 
   const rows = bikes.map((bike) => ({ bike, roi: computeRoi(bike.capitalInvested, bike.payments) }));
   const tracked = rows.filter((r) => r.roi !== null);
@@ -28,6 +30,7 @@ export default async function ProfilePage() {
 
   return (
     <div className="flex-1 flex flex-col">
+      {demo && <DemoBanner />}
       <BackNav />
 
       <div className="px-4 sm:px-10 py-6 sm:py-8 pb-14 max-w-[1100px] w-full mx-auto">

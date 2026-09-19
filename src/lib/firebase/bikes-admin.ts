@@ -43,10 +43,13 @@ function bikeFromDoc(id: string, data: FirebaseFirestore.DocumentData): Bike {
   };
 }
 
-export async function listBikesWithPayments(): Promise<BikeWithPayments[]> {
+/** Demo bikes are flagged isDemo; a real session only ever sees real bikes and a demo session only demo ones. */
+const inScope = (data: FirebaseFirestore.DocumentData, demo: boolean) => (data.isDemo === true) === demo;
+
+export async function listBikesWithPayments(demo: boolean): Promise<BikeWithPayments[]> {
   const snapshot = await bikesCol().get();
   const bikes = await Promise.all(
-    snapshot.docs.map(async (doc) => {
+    snapshot.docs.filter((doc) => inScope(doc.data(), demo)).map(async (doc) => {
       const bike = bikeFromDoc(doc.id, doc.data());
       const paymentsSnap = await paymentsCol(doc.id).orderBy("weekNumber").get();
       const payments = paymentsSnap.docs.map((p) => paymentFromDoc(p.data()));
@@ -56,9 +59,9 @@ export async function listBikesWithPayments(): Promise<BikeWithPayments[]> {
   return bikes;
 }
 
-export async function getBikeWithPayments(bikeId: string): Promise<BikeWithPayments | null> {
+export async function getBikeWithPayments(bikeId: string, demo: boolean): Promise<BikeWithPayments | null> {
   const doc = await bikesCol().doc(bikeId).get();
-  if (!doc.exists) return null;
+  if (!doc.exists || !inScope(doc.data()!, demo)) return null;
   const bike = bikeFromDoc(doc.id, doc.data()!);
   const paymentsSnap = await paymentsCol(bikeId).orderBy("weekNumber").get();
   const payments = paymentsSnap.docs.map((p) => paymentFromDoc(p.data()));
@@ -72,9 +75,9 @@ export interface BikeDocUrls {
 }
 
 /** Lighter than getBikeWithPayments -- skips the payments subcollection fetch for routes that only need to know where a document lives. */
-export async function getBikeDocUrls(bikeId: string): Promise<BikeDocUrls | null> {
+export async function getBikeDocUrls(bikeId: string, demo: boolean): Promise<BikeDocUrls | null> {
   const doc = await bikesCol().doc(bikeId).get();
-  if (!doc.exists) return null;
+  if (!doc.exists || !inScope(doc.data()!, demo)) return null;
   const data = doc.data()!;
   return {
     riderPhotoUrl: data.riderPhotoUrl ?? null,
@@ -85,7 +88,7 @@ export async function getBikeDocUrls(bikeId: string): Promise<BikeDocUrls | null
 
 export const DEFAULT_GRACE_ALLOWANCE = 3;
 
-export async function createBike(input: NewBikeInput): Promise<string> {
+export async function createBike(input: NewBikeInput, demo: boolean): Promise<string> {
   const totalValue = input.weeklyAmount * input.numPayments;
   const schedule = generateSchedule(input.startDate, input.weeklyAmount, input.numPayments);
 
@@ -109,6 +112,7 @@ export async function createBike(input: NewBikeInput): Promise<string> {
     missedCount: 0,
     status: "active",
     createdAt: toISODate(new Date()),
+    ...(demo ? { isDemo: true } : {}),
   });
 
   for (const payment of schedule) {
@@ -134,10 +138,10 @@ export interface EditableBikeTerms {
   capitalInvested?: number | null;
 }
 
-export async function updateBikeTerms(bikeId: string, terms: EditableBikeTerms): Promise<void> {
+export async function updateBikeTerms(bikeId: string, terms: EditableBikeTerms, demo: boolean): Promise<void> {
   const bikeRef = bikesCol().doc(bikeId);
   const bikeDoc = await bikeRef.get();
-  if (!bikeDoc.exists) throw new Error("Bike not found");
+  if (!bikeDoc.exists || !inScope(bikeDoc.data()!, demo)) throw new Error("Bike not found");
   const existing = bikeFromDoc(bikeId, bikeDoc.data()!);
 
   const patch: Record<string, unknown> = {
@@ -169,11 +173,18 @@ export async function updateBikeTerms(bikeId: string, terms: EditableBikeTerms):
   await batch.commit();
 }
 
+async function assertBikeInScope(bikeId: string, demo: boolean): Promise<void> {
+  const doc = await bikesCol().doc(bikeId).get();
+  if (!doc.exists || !inScope(doc.data()!, demo)) throw new Error("Bike not found");
+}
+
 export async function markPaymentPaid(
   bikeId: string,
   weekNumber: number,
-  reason: string | null
+  reason: string | null,
+  demo: boolean
 ): Promise<void> {
+  await assertBikeInScope(bikeId, demo);
   const paymentRef = paymentsCol(bikeId).doc(String(weekNumber));
   const paymentDoc = await paymentRef.get();
   if (!paymentDoc.exists) throw new Error("Payment not found");
@@ -217,8 +228,10 @@ export async function markPaymentPaid(
 export async function markPaymentMissed(
   bikeId: string,
   weekNumber: number,
-  reason: string | null
+  reason: string | null,
+  demo: boolean
 ): Promise<void> {
+  await assertBikeInScope(bikeId, demo);
   const paymentRef = paymentsCol(bikeId).doc(String(weekNumber));
   const paymentDoc = await paymentRef.get();
   if (!paymentDoc.exists) throw new Error("Payment not found");
@@ -264,11 +277,12 @@ export interface SweepResult {
 export async function runMissedPaymentSweep(): Promise<SweepResult> {
   const asOf = new Date();
   const snapshot = await bikesCol().where("status", "==", "active").get();
+  const realDocs = snapshot.docs.filter((d) => d.data().isDemo !== true);
 
   let paymentsMarkedMissed = 0;
   const bikesFlagged: string[] = [];
 
-  for (const bikeDoc of snapshot.docs) {
+  for (const bikeDoc of realDocs) {
     const bike = bikeFromDoc(bikeDoc.id, bikeDoc.data());
     const paymentsSnap = await paymentsCol(bikeDoc.id)
       .where("status", "==", "pending")
@@ -299,7 +313,7 @@ export async function runMissedPaymentSweep(): Promise<SweepResult> {
   }
 
   return {
-    bikesScanned: snapshot.size,
+    bikesScanned: realDocs.length,
     paymentsMarkedMissed,
     bikesFlagged,
   };
@@ -321,4 +335,99 @@ export async function getOwnerProfile(uid: string): Promise<OwnerProfile> {
 
 export async function saveOwnerProfile(uid: string, profile: OwnerProfile): Promise<void> {
   await ownersCol().doc(uid).set(profile, { merge: true });
+}
+
+const DEMO_OWNER_UID = "demo-user";
+
+export const DEMO_OWNER = { uid: DEMO_OWNER_UID, email: "demo@rideiq.demo" };
+
+function daysAgoISO(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return toISODate(d);
+}
+
+/** Wipes and recreates the sample fleet so every demo visit starts from the same clean state. */
+export async function resetDemoData(): Promise<void> {
+  const existing = await bikesCol().where("isDemo", "==", true).get();
+  await Promise.all([
+    ...existing.docs.map(async (bikeDoc) => {
+      const payments = await paymentsCol(bikeDoc.id).get();
+      const batch = adminDb.batch();
+      payments.docs.forEach((p) => batch.delete(p.ref));
+      batch.delete(bikeDoc.ref);
+      await batch.commit();
+    }),
+    ownersCol().doc(DEMO_OWNER_UID).set({ firstName: "Demo", lastName: "Owner", phone: "024 000 0000" }),
+  ]);
+
+  const riders = [
+    {
+      bikeModel: "Royal 125 Eagle",
+      riderName: "Kofi Mensah",
+      riderPhone: "024 000 0001",
+      riderPhotoUrl: "/demo/rider-kofi.jpg",
+      capitalInvested: 11400,
+      numPayments: 50,
+      startDaysAgo: 56,
+      paidWeeks: [1, 2, 3, 4, 5, 6, 7, 8],
+      missedWeeks: [] as number[],
+    },
+    {
+      bikeModel: "Royal 125",
+      riderName: "Yaw Boateng",
+      riderPhone: "024 000 0002",
+      riderPhotoUrl: "/demo/rider-yaw.jpg",
+      capitalInvested: 10900,
+      numPayments: 44,
+      startDaysAgo: 42,
+      paidWeeks: [1, 2, 3, 5],
+      missedWeeks: [4],
+    },
+  ];
+
+  await Promise.all(riders.map(async (rider) => {
+    const bikeId = await createBike(
+      {
+        bikeModel: rider.bikeModel,
+        plateNumber: "",
+        riderName: rider.riderName,
+        riderPhone: rider.riderPhone,
+        startDate: daysAgoISO(rider.startDaysAgo),
+        weeklyAmount: 400,
+        numPayments: rider.numPayments,
+        riderPhotoUrl: rider.riderPhotoUrl,
+        idDocUrl: null,
+        contractDocUrl: null,
+        capitalInvested: rider.capitalInvested,
+      },
+      true
+    );
+
+    const snap = await paymentsCol(bikeId).orderBy("weekNumber").get();
+    const batch = adminDb.batch();
+    for (const doc of snap.docs) {
+      const payment = paymentFromDoc(doc.data());
+      if (rider.paidWeeks.includes(payment.weekNumber)) {
+        const madeUp = rider.missedWeeks.includes(payment.weekNumber - 1);
+        batch.update(doc.ref, {
+          status: "paid",
+          paidDate: payment.dueDate,
+          ...(madeUp ? { madeUpDate: payment.dueDate } : {}),
+        });
+      } else if (rider.missedWeeks.includes(payment.weekNumber)) {
+        batch.update(doc.ref, {
+          status: "missed",
+          missedDate: payment.dueDate,
+          reason: "Bike was in the workshop",
+        });
+      }
+    }
+    await batch.commit();
+
+    const bike = await getBikeWithPayments(bikeId, true);
+    if (!bike) return;
+    const plan = planSweep(bike, bike.payments, new Date());
+    await bikesCol().doc(bikeId).update({ missedCount: plan.newMissedCount, status: plan.newStatus });
+  }));
 }

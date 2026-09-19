@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { requireSessionUser } from "@/lib/session";
+import { isDemoUser, requireSessionUser } from "@/lib/session";
 import { getBikeWithPayments } from "@/lib/firebase/bikes-admin";
 import {
   collectedTotal,
@@ -10,6 +10,7 @@ import {
 } from "@/lib/payments";
 import { getStatusDisplay } from "@/lib/status";
 import { formatDateLong, formatGHS } from "@/lib/format";
+import { DemoBanner } from "@/components/DemoBanner";
 import { BackNav } from "@/components/Navbar";
 import { BikeDetailHeader } from "@/components/BikeDetailHeader";
 import { DocumentsRow } from "@/components/DocumentsRow";
@@ -21,9 +22,10 @@ export default async function BikeDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireSessionUser();
+  const user = await requireSessionUser();
+  const demo = isDemoUser(user);
   const { id } = await params;
-  const bike = await getBikeWithPayments(id);
+  const bike = await getBikeWithPayments(id, demo);
   if (!bike) notFound();
 
   const asOf = new Date();
@@ -36,6 +38,7 @@ export default async function BikeDetailPage({
 
   return (
     <div className="flex-1 flex flex-col">
+      {demo && <DemoBanner />}
       <BackNav />
 
       <div className="px-4 sm:px-10 py-6 sm:py-8 pb-14 max-w-[1100px] w-full mx-auto">

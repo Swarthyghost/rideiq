@@ -1,15 +1,17 @@
-import { requireSessionUser } from "@/lib/session";
+import { isDemoUser, requireSessionUser } from "@/lib/session";
 import { listBikesWithPayments } from "@/lib/firebase/bikes-admin";
 import { collectedTotal, computeLiveMissedCount, computeLiveStatus, outstandingTotal } from "@/lib/payments";
 import { formatGHS } from "@/lib/format";
+import { DemoBanner } from "@/components/DemoBanner";
 import { Navbar } from "@/components/Navbar";
 import { StatCard } from "@/components/StatCard";
 import { BikeCard } from "@/components/BikeCard";
 import { AskPrinceButton } from "@/components/AskPrinceButton";
 
 export default async function DashboardPage() {
-  await requireSessionUser();
-  const bikes = await listBikesWithPayments();
+  const user = await requireSessionUser();
+  const demo = isDemoUser(user);
+  const bikes = await listBikesWithPayments(demo);
   const asOf = new Date();
 
   const derived = bikes.map((bike) => ({
@@ -57,6 +59,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex-1 flex flex-col">
+      {demo && <DemoBanner />}
       <Navbar />
 
       <div className="px-4 sm:px-10 py-6 sm:py-9 pb-16 sm:pb-14 flex-1">
