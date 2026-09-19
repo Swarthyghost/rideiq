@@ -21,6 +21,7 @@ export function EditTermsModal({ bike, onClose }: { bike: Bike; onClose: () => v
   const [riderName, setRiderName] = useState(bike.riderName);
   const [riderPhone, setRiderPhone] = useState(bike.riderPhone);
   const [status, setStatus] = useState<BikeStatus>(bike.status);
+  const [capitalInvested, setCapitalInvested] = useState(bike.capitalInvested === null ? "" : String(bike.capitalInvested));
   const [weeklyAmount, setWeeklyAmount] = useState(String(bike.weeklyAmount));
   const [totalValue, setTotalValue] = useState(String(bike.totalValue));
   const [saving, setSaving] = useState(false);
@@ -101,6 +102,7 @@ export function EditTermsModal({ bike, onClose }: { bike: Bike; onClose: () => v
           status,
           weeklyAmount: weekly,
           totalValue: total,
+          capitalInvested: capitalInvested.trim() === "" ? null : Number(capitalInvested),
           ...(riderPhotoUrl !== undefined ? { riderPhotoUrl } : {}),
           ...(idDocUrl !== undefined ? { idDocUrl } : {}),
           ...(contractDocUrl !== undefined ? { contractDocUrl } : {}),
@@ -224,6 +226,17 @@ export function EditTermsModal({ bike, onClose }: { bike: Bike; onClose: () => v
         <p className="text-[12px] text-muted font-semibold -mt-2">
           Changing the weekly payment updates every week that hasn&apos;t been paid yet — weeks already paid keep their original amount.
         </p>
+
+        <Field label="Capital invested (GHS)">
+          <input
+            type="number"
+            min={0}
+            value={capitalInvested}
+            onChange={(e) => setCapitalInvested(e.target.value)}
+            placeholder="What you paid for this bike"
+            className={inputClass}
+          />
+        </Field>
 
         <Field label="Status">
           <select

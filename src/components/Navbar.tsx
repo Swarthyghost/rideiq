@@ -33,6 +33,9 @@ export function Navbar() {
             <PlusIcon size={16} />
             Add bike
           </Link>
+          <Link href="/profile" className="text-cream/75 hover:text-cream text-sm font-semibold">
+            Profile
+          </Link>
           <button
             onClick={signOut}
             className="text-cream/75 hover:text-cream text-sm font-semibold cursor-pointer"
@@ -59,6 +62,13 @@ export function Navbar() {
           >
             <PlusIcon size={16} />
             Add bike
+          </Link>
+          <Link
+            href="/profile"
+            onClick={() => setMenuOpen(false)}
+            className="text-cream/85 text-sm font-semibold py-1.5 text-center"
+          >
+            Profile
           </Link>
           <button
             onClick={signOut}

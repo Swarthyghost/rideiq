@@ -26,6 +26,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid number of payments" }, { status: 400 });
   }
 
+  const capitalRaw = body.capitalInvested;
+  const capitalInvested =
+    capitalRaw === null || capitalRaw === undefined || capitalRaw === "" ? null : Number(capitalRaw);
+  if (capitalInvested !== null && (!Number.isFinite(capitalInvested) || capitalInvested < 0)) {
+    return NextResponse.json({ error: "Invalid capital invested" }, { status: 400 });
+  }
+
   const input: NewBikeInput = {
     bikeModel,
     plateNumber: String(body.plateNumber ?? "").trim(),
@@ -37,6 +44,7 @@ export async function POST(request: Request) {
     riderPhotoUrl: body.riderPhotoUrl ?? null,
     idDocUrl: body.idDocUrl ?? null,
     contractDocUrl: body.contractDocUrl ?? null,
+    capitalInvested,
   };
 
   const bikeId = await createBike(input);

@@ -13,6 +13,8 @@ export interface Bike {
   riderPhotoUrl: string | null;
   idDocUrl: string | null;
   contractDocUrl: string | null;
+  /** What the owner paid out to acquire this bike (GHS); null until entered. */
+  capitalInvested: number | null;
   /** ISO date string (yyyy-mm-dd) */
   startDate: string;
   weeklyAmount: number;
@@ -56,4 +58,11 @@ export interface NewBikeInput {
   riderPhotoUrl: string | null;
   idDocUrl: string | null;
   contractDocUrl: string | null;
+  capitalInvested: number | null;
+}
+
+export interface OwnerProfile {
+  firstName: string;
+  lastName: string;
+  phone: string;
 }

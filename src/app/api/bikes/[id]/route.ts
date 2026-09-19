@@ -34,6 +34,15 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
   }
 
+  let capitalInvested: number | null | undefined;
+  if ("capitalInvested" in body) {
+    const raw = body.capitalInvested;
+    capitalInvested = raw === null || raw === "" ? null : Number(raw);
+    if (capitalInvested !== null && (!Number.isFinite(capitalInvested) || capitalInvested < 0)) {
+      return NextResponse.json({ error: "Invalid capital invested" }, { status: 400 });
+    }
+  }
+
   await updateBikeTerms(id, {
     bikeModel,
     plateNumber: String(body.plateNumber ?? "").trim(),
@@ -45,6 +54,7 @@ export async function PATCH(
     riderPhotoUrl: "riderPhotoUrl" in body ? body.riderPhotoUrl : undefined,
     idDocUrl: "idDocUrl" in body ? body.idDocUrl : undefined,
     contractDocUrl: "contractDocUrl" in body ? body.contractDocUrl : undefined,
+    capitalInvested,
   });
 
   return NextResponse.json({ ok: true });

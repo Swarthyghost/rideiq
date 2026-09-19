@@ -19,6 +19,7 @@ export function AddBikeForm() {
   const [startDate, setStartDate] = useState(toISODate(new Date()));
   const [weeklyAmount, setWeeklyAmount] = useState("400");
   const [numPayments, setNumPayments] = useState("50");
+  const [capitalInvested, setCapitalInvested] = useState("");
 
   const [riderPhotoFile, setRiderPhotoFile] = useState<File | null>(null);
   const [riderPhotoPreview, setRiderPhotoPreview] = useState<string | null>(null);
@@ -90,6 +91,7 @@ export function AddBikeForm() {
           startDate,
           weeklyAmount: Number(weeklyAmount),
           numPayments: Number(numPayments),
+          capitalInvested: capitalInvested.trim() === "" ? null : Number(capitalInvested),
           riderPhotoUrl,
           idDocUrl,
           contractDocUrl,
@@ -226,6 +228,19 @@ export function AddBikeForm() {
               min={1}
               value={numPayments}
               onChange={(e) => setNumPayments(e.target.value)}
+              className={inputClass}
+            />
+          </Field>
+        </div>
+
+        <div className="mt-4.5">
+          <Field label="Capital invested (GHS)">
+            <input
+              type="number"
+              min={0}
+              value={capitalInvested}
+              onChange={(e) => setCapitalInvested(e.target.value)}
+              placeholder="Optional — what you paid for this bike"
               className={inputClass}
             />
           </Field>

@@ -3,7 +3,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
 import { generateSchedule, isPastDue, planSweep } from "@/lib/payments";
 import { toISODate } from "@/lib/format";
-import type { Bike, BikeWithPayments, NewBikeInput, Payment } from "@/lib/types";
+import type { Bike, BikeWithPayments, NewBikeInput, OwnerProfile, Payment } from "@/lib/types";
 
 const bikesCol = () => adminDb.collection("bikes");
 const paymentsCol = (bikeId: string) => bikesCol().doc(bikeId).collection("payments");
@@ -31,6 +31,7 @@ function bikeFromDoc(id: string, data: FirebaseFirestore.DocumentData): Bike {
     riderPhotoUrl: data.riderPhotoUrl ?? null,
     idDocUrl: data.idDocUrl ?? null,
     contractDocUrl: data.contractDocUrl ?? null,
+    capitalInvested: data.capitalInvested ?? null,
     startDate: data.startDate,
     weeklyAmount: data.weeklyAmount,
     numPayments: data.numPayments,
@@ -99,6 +100,7 @@ export async function createBike(input: NewBikeInput): Promise<string> {
     riderPhotoUrl: input.riderPhotoUrl,
     idDocUrl: input.idDocUrl,
     contractDocUrl: input.contractDocUrl,
+    capitalInvested: input.capitalInvested,
     startDate: input.startDate,
     weeklyAmount: input.weeklyAmount,
     numPayments: input.numPayments,
@@ -129,6 +131,7 @@ export interface EditableBikeTerms {
   riderPhotoUrl?: string | null;
   idDocUrl?: string | null;
   contractDocUrl?: string | null;
+  capitalInvested?: number | null;
 }
 
 export async function updateBikeTerms(bikeId: string, terms: EditableBikeTerms): Promise<void> {
@@ -149,6 +152,7 @@ export async function updateBikeTerms(bikeId: string, terms: EditableBikeTerms):
   if (terms.riderPhotoUrl !== undefined) patch.riderPhotoUrl = terms.riderPhotoUrl;
   if (terms.idDocUrl !== undefined) patch.idDocUrl = terms.idDocUrl;
   if (terms.contractDocUrl !== undefined) patch.contractDocUrl = terms.contractDocUrl;
+  if (terms.capitalInvested !== undefined) patch.capitalInvested = terms.capitalInvested;
 
   const batch = adminDb.batch();
   batch.update(bikeRef, patch);
@@ -302,3 +306,19 @@ export async function runMissedPaymentSweep(): Promise<SweepResult> {
 }
 
 export { FieldValue };
+
+const ownersCol = () => adminDb.collection("owners");
+
+export async function getOwnerProfile(uid: string): Promise<OwnerProfile> {
+  const doc = await ownersCol().doc(uid).get();
+  const data = doc.data();
+  return {
+    firstName: data?.firstName ?? "",
+    lastName: data?.lastName ?? "",
+    phone: data?.phone ?? "",
+  };
+}
+
+export async function saveOwnerProfile(uid: string, profile: OwnerProfile): Promise<void> {
+  await ownersCol().doc(uid).set(profile, { merge: true });
+}

@@ -141,3 +141,29 @@ export function outstandingTotal(payments: Payment[]): number {
 export function paidCount(payments: Payment[]): number {
   return payments.filter((p) => p.status === "paid").length;
 }
+
+export interface RoiSummary {
+  capital: number;
+  revenue: number;
+  /** (revenue - capital) / capital * 100; negative until the capital is recovered. */
+  roiPercent: number;
+  /** revenue / capital * 100, capped display is left to the caller. */
+  recoveredPercent: number;
+}
+
+/** Returns null when no (positive) capital has been entered, since ROI is undefined then. */
+export function computeRoi(capital: number | null, payments: Payment[]): RoiSummary | null {
+  if (capital === null || !(capital > 0)) return null;
+  const revenue = collectedTotal(payments);
+  return {
+    capital,
+    revenue,
+    roiPercent: ((revenue - capital) / capital) * 100,
+    recoveredPercent: (revenue / capital) * 100,
+  };
+}
+
+export function formatPercent(value: number): string {
+  const rounded = Math.round(value * 10) / 10;
+  return `${rounded > 0 ? "+" : ""}${rounded.toFixed(1)}%`;
+}
