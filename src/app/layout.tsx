@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
 import { AuthProvider } from "@/lib/firebase/auth-context";
 import { Footer } from "@/components/Footer";
+import { AskPrinceButton } from "@/components/AskPrinceButton";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -22,6 +23,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <AuthProvider>
           {children}
           <Footer />
+          <AskPrinceButton />
         </AuthProvider>
       </body>
     </html>

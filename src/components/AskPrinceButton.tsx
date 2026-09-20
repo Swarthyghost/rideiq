@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { SparkleIcon } from "@/components/icons";
+import { useAuth } from "@/lib/firebase/auth-context";
 import { PrinceChatPanel } from "@/components/PrinceChatPanel";
 
 export function AskPrinceButton() {
   const [open, setOpen] = useState(false);
+  const { user } = useAuth();
 
   return (
     <>
@@ -17,7 +19,7 @@ export function AskPrinceButton() {
         <SparkleIcon size={20} />
         <span className="hidden sm:inline">Ask Prince</span>
       </button>
-      <PrinceChatPanel open={open} onClose={() => setOpen(false)} />
+      <PrinceChatPanel open={open} onClose={() => setOpen(false)} signedIn={Boolean(user)} />
     </>
   );
 }

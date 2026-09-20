@@ -2,11 +2,28 @@ import { NextResponse } from "next/server";
 import Groq from "groq-sdk";
 import type { ChatCompletionMessageParam } from "groq-sdk/resources/chat/completions";
 import { isDemoUser, requireApiUser } from "@/lib/session";
-import { PRINCE_SYSTEM_PROMPT } from "@/lib/prince/systemPrompt";
+import { buildSystemPrompt } from "@/lib/prince/systemPrompt";
+import { formatContext, retrieve } from "@/lib/prince/retrieval";
 import { princeTools, callPrinceTool } from "@/lib/prince/tools";
 
 const MODEL = "openai/gpt-oss-120b";
 const MAX_TOOL_ROUNDS = 6;
+const MAX_MESSAGES = 20;
+const MAX_MESSAGE_CHARS = 1000;
+const RATE_LIMIT = 30;
+const RATE_WINDOW_MS = 10 * 60 * 1000;
+
+// Best-effort per-caller throttle (per server instance): this endpoint is public,
+// so it must not be an open tap on the Groq key.
+const hits = new Map<string, number[]>();
+
+function rateLimited(key: string): boolean {
+  const now = Date.now();
+  const recent = (hits.get(key) ?? []).filter((t) => now - t < RATE_WINDOW_MS);
+  recent.push(now);
+  hits.set(key, recent);
+  return recent.length > RATE_LIMIT;
+}
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -14,8 +31,15 @@ interface ChatMessage {
 }
 
 export async function POST(request: Request) {
+  // Public on purpose: anyone can ask about policy. Only a session unlocks the
+  // ledger tools, and those are scoped to that session's own (real or demo) data.
   const user = await requireApiUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const demo = user ? isDemoUser(user) : false;
+
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
+  if (rateLimited(user ? `user:${user.uid}` : `ip:${ip}`)) {
+    return NextResponse.json({ error: "Too many questions. Please wait a few minutes." }, { status: 429 });
+  }
 
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
@@ -23,14 +47,25 @@ export async function POST(request: Request) {
   }
 
   const { messages } = (await request.json()) as { messages: ChatMessage[] };
-  if (!Array.isArray(messages) || messages.length === 0) {
+  if (!Array.isArray(messages) || messages.length === 0 || messages.length > MAX_MESSAGES) {
     return NextResponse.json({ error: "Missing messages" }, { status: 400 });
   }
+  if (messages.some((m) => typeof m?.content !== "string" || m.content.length > MAX_MESSAGE_CHARS)) {
+    return NextResponse.json({ error: "Message too long" }, { status: 400 });
+  }
+
+  // Retrieve on the last two user turns so follow-ups like "and if I'm late?" keep their topic.
+  const query = messages
+    .filter((m) => m.role === "user")
+    .slice(-2)
+    .map((m) => m.content)
+    .join(" ");
+  const context = formatContext(retrieve(query));
 
   const groq = new Groq({ apiKey });
 
   const history: ChatCompletionMessageParam[] = [
-    { role: "system", content: PRINCE_SYSTEM_PROMPT },
+    { role: "system", content: buildSystemPrompt({ signedIn: Boolean(user), demo, context }) },
     ...messages.map((m): ChatCompletionMessageParam => ({ role: m.role, content: m.content })),
   ];
 
@@ -41,7 +76,7 @@ export async function POST(request: Request) {
         response = await groq.chat.completions.create({
           model: MODEL,
           max_tokens: 1024,
-          tools: princeTools,
+          ...(user ? { tools: princeTools } : {}),
           messages: history,
         });
       } catch (err) {
@@ -75,7 +110,7 @@ export async function POST(request: Request) {
           } catch {
             // Leave args empty if the model produced malformed JSON.
           }
-          const result = await callPrinceTool(call.function.name, args, isDemoUser(user));
+          const result = user ? await callPrinceTool(call.function.name, args, demo) : { error: "Not signed in" };
           return {
             role: "tool" as const,
             tool_call_id: call.id,

@@ -184,7 +184,7 @@ export const princeTools = [
       parameters: {
         type: "object" as const,
         properties: {
-          period: { type: "string", enum: ["all", "this_month"], description: "Defaults to 'all'." },
+          period: { type: ["string", "null"], enum: ["all", "this_month", null], description: "Defaults to 'all'." },
         },
       },
     },
@@ -209,8 +209,9 @@ export const princeTools = [
         type: "object" as const,
         properties: {
           statusFilter: {
-            type: "string",
-            enum: ["active", "repossession_flagged", "repossessed", "completed"],
+            type: ["string", "null"],
+            enum: ["active", "repossession_flagged", "repossessed", "completed", null],
+            description: "Omit or null to list every bike.",
           },
         },
       },
@@ -248,7 +249,7 @@ export const princeTools = [
     type: "function" as const,
     function: {
       name: "listFlaggedForRepossession",
-      description: "Lists every bike currently flagged for repossession (missed count exceeds grace allowance).",
+      description: "Lists every bike currently flagged for repossession (missed count has reached the grace allowance -- the third strike).",
       parameters: {
         type: "object" as const,
         properties: {},

@@ -6,7 +6,6 @@ import { DemoBanner } from "@/components/DemoBanner";
 import { Navbar } from "@/components/Navbar";
 import { StatCard } from "@/components/StatCard";
 import { BikeCard } from "@/components/BikeCard";
-import { AskPrinceButton } from "@/components/AskPrinceButton";
 
 export default async function DashboardPage() {
   const user = await requireSessionUser();
@@ -99,8 +98,6 @@ export default async function DashboardPage() {
           </div>
         )}
       </div>
-
-      <AskPrinceButton />
     </div>
   );
 }

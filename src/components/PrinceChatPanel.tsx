@@ -8,13 +8,29 @@ interface ChatMessage {
   content: string;
 }
 
-const SUGGESTIONS = [
+const POLICY_SUGGESTIONS = [
+  "How long does the payment plan take?",
+  "What happens if I pay late?",
+  "Who pays for repairs?",
+  "When do I own the bike?",
+];
+
+const LEDGER_SUGGESTIONS = [
   "How much have we made so far?",
   "Who's in the grace zone?",
   "List bikes flagged for repossession",
 ];
 
-export function PrinceChatPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function PrinceChatPanel({
+  open,
+  onClose,
+  signedIn,
+}: {
+  open: boolean;
+  onClose: () => void;
+  signedIn: boolean;
+}) {
+  const suggestions = signedIn ? [...POLICY_SUGGESTIONS.slice(0, 2), ...LEDGER_SUGGESTIONS.slice(0, 2)] : POLICY_SUGGESTIONS;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -45,7 +61,7 @@ export function PrinceChatPanel({ open, onClose }: { open: boolean; onClose: () 
     } catch {
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: "I couldn't reach the ledger just now. Try again in a moment." },
+        { role: "assistant", content: "I couldn't answer that just now. Try again in a moment." },
       ]);
     } finally {
       setLoading(false);
@@ -71,7 +87,7 @@ export function PrinceChatPanel({ open, onClose }: { open: boolean; onClose: () 
             </div>
             <div>
               <div className="text-cream text-[15px] font-extrabold">Prince</div>
-              <div className="text-cream/75 text-[11.5px] font-semibold">Your business assistant</div>
+              <div className="text-cream/75 text-[11.5px] font-semibold">RideIQ assistant</div>
             </div>
           </div>
           <button onClick={onClose} className="text-cream cursor-pointer" aria-label="Close">
@@ -80,14 +96,16 @@ export function PrinceChatPanel({ open, onClose }: { open: boolean; onClose: () 
         </div>
 
         <div className="bg-status-grace-bg text-status-grace-fg text-[11.5px] font-bold px-5 py-2.5 flex-shrink-0">
-          Every answer is pulled live from your bike records — Prince won&apos;t guess a number.
+          {signedIn
+            ? "Policy answers come from RideIQ's published documents. Figures come live from your records."
+            : "Prince explains RideIQ's Work & Pay policies from our published documents. It isn't legal advice."}
         </div>
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4.5 py-4 flex flex-col gap-3.5">
           {messages.length === 0 && (
             <div className="flex flex-col gap-2 mt-2">
               <div className="text-[12.5px] font-bold text-muted mb-1">Try asking:</div>
-              {SUGGESTIONS.map((s) => (
+              {suggestions.map((s) => (
                 <button
                   key={s}
                   onClick={() => sendMessage(s)}
@@ -114,7 +132,7 @@ export function PrinceChatPanel({ open, onClose }: { open: boolean; onClose: () 
 
           {loading && (
             <div className="self-start max-w-[88%] bg-white border border-border px-3.5 py-2.5 rounded-[14px] rounded-bl-[3px] text-[13.5px] font-semibold text-muted">
-              Checking the ledger…
+              Thinking…
             </div>
           )}
         </div>
@@ -127,7 +145,7 @@ export function PrinceChatPanel({ open, onClose }: { open: boolean; onClose: () 
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask Prince anything about your bikes…"
+            placeholder={signedIn ? "Ask Prince about Work & Pay or your bikes…" : "Ask Prince about Work & Pay…"}
             className="flex-1 text-[13.5px] font-semibold px-3.5 py-2.5 border border-border-input rounded-full bg-bg text-ink focus:outline-none focus:border-[#1f6b45]"
           />
           <button

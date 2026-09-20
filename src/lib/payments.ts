@@ -63,7 +63,8 @@ export function computeGraceStatus(
     missedCount,
     graceAllowance,
     graceRemaining,
-    flagged: missedCount > graceAllowance,
+    // The third strike triggers repossession -- the count must never pass three.
+    flagged: missedCount >= graceAllowance,
   };
 }
 
@@ -77,7 +78,7 @@ export function computeLiveStatus(
     return bike.status;
   }
   const missedCount = computeLiveMissedCount(payments, asOf);
-  return missedCount > bike.graceAllowance ? "repossession_flagged" : "active";
+  return missedCount >= bike.graceAllowance ? "repossession_flagged" : "active";
 }
 
 export interface PaymentUpdate {
