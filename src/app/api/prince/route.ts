@@ -4,7 +4,7 @@ import type { ChatCompletionMessageParam } from "groq-sdk/resources/chat/complet
 import { isDemoUser, requireApiUser } from "@/lib/session";
 import { buildSystemPrompt } from "@/lib/prince/systemPrompt";
 import { formatContext, retrieve } from "@/lib/prince/retrieval";
-import { princeTools, callPrinceTool } from "@/lib/prince/tools";
+import { princeTools, publicPrinceTools, callPrinceTool } from "@/lib/prince/tools";
 
 const MODEL = "openai/gpt-oss-120b";
 const MAX_TOOL_ROUNDS = 6;
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
         response = await groq.chat.completions.create({
           model: MODEL,
           max_tokens: 1024,
-          ...(user ? { tools: princeTools } : {}),
+          tools: user ? princeTools : publicPrinceTools,
           messages: history,
         });
       } catch (err) {
@@ -110,7 +110,9 @@ export async function POST(request: Request) {
           } catch {
             // Leave args empty if the model produced malformed JSON.
           }
-          const result = user ? await callPrinceTool(call.function.name, args, demo) : { error: "Not signed in" };
+          const result = user || call.function.name === "calculateInvestment"
+            ? await callPrinceTool(call.function.name, args, demo)
+            : { error: "Not signed in" };
           return {
             role: "tool" as const,
             tool_call_id: call.id,

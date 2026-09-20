@@ -9,6 +9,7 @@ import {
   paidCount,
 } from "@/lib/payments";
 import type { BikeWithPayments } from "@/lib/types";
+import { calculateInvestment, type InvestmentInput } from "@/lib/investment/calculator";
 
 async function findBike(idOrRiderName: string, demo: boolean): Promise<BikeWithPayments | null> {
   const bikes = await listBikesWithPayments(demo);
@@ -175,7 +176,28 @@ export async function getWeeksRemaining(args: { bikeIdOrRiderName: string }, dem
 // Groq's chat-completions API is OpenAI-compatible: each tool is
 // { type: "function", function: { name, description, parameters } },
 // where `parameters` is a JSON Schema object.
+const calculateInvestmentTool = {
+  type: "function" as const,
+  function: {
+    name: "calculateInvestment",
+    description:
+      "Calculates a prospective RideIQ investment: capital, target return, total scheduled payout and (with a start date) the maturity date. Give either the number of bikes or the total amount in GHS. Use this for any investor question involving figures for a number of bikes or an amount. It does not use anyone's personal records.",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        bikes: { type: ["integer", "null"], description: "Number of bikes to fund." },
+        amount: { type: ["number", "null"], description: "Total capital in GHS, e.g. 25000." },
+        startDate: { type: ["string", "null"], description: "Optional start date, yyyy-mm-dd, to get the maturity date." },
+      },
+    },
+  },
+};
+
+/** Tools open to everyone, including signed-out visitors: they touch no personal or business records. */
+export const publicPrinceTools = [calculateInvestmentTool];
+
 export const princeTools = [
+  calculateInvestmentTool,
   {
     type: "function" as const,
     function: {
@@ -274,6 +296,14 @@ export const princeTools = [
 
 export async function callPrinceTool(name: string, input: Record<string, unknown>, demo: boolean) {
   switch (name) {
+    case "calculateInvestment": {
+      const clean = (v: unknown) => (v === null || v === undefined || v === "" ? undefined : v);
+      return calculateInvestment({
+        bikes: clean(input.bikes) as InvestmentInput["bikes"],
+        amount: clean(input.amount) as InvestmentInput["amount"],
+        startDate: clean(input.startDate) as InvestmentInput["startDate"],
+      });
+    }
     case "getTotalCollected":
       return getTotalCollected(input as { period?: "all" | "this_month" }, demo);
     case "getTotalOutstanding":
