@@ -95,12 +95,6 @@ export function PrinceChatPanel({
           </button>
         </div>
 
-        <div className="bg-status-grace-bg text-status-grace-fg text-[11.5px] font-bold px-5 py-2.5 flex-shrink-0">
-          {signedIn
-            ? "Policy answers come from RideIQ's published documents. Figures come live from your records."
-            : "Prince explains RideIQ's Work & Pay policies from our published documents. It isn't legal advice."}
-        </div>
-
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4.5 py-4 flex flex-col gap-3.5">
           {messages.length === 0 && (
             <div className="flex flex-col gap-2 mt-2">
