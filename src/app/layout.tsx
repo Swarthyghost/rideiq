@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Manrope } from "next/font/google";
 import { AuthProvider } from "@/lib/firebase/auth-context";
 import { Footer } from "@/components/Footer";
@@ -14,6 +14,13 @@ const manrope = Manrope({
 export const metadata: Metadata = {
   title: "RiderIQ",
   description: "Hire-purchase bike tracking for RiderIQ.",
+};
+
+// resizes-content keeps the chat input and send button above the on-screen keyboard.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

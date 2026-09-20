@@ -76,10 +76,10 @@ export function PrinceChatPanel({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
+    <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
       <div className="absolute inset-0 bg-black/35" onClick={onClose} />
 
-      <div className="relative w-full sm:max-w-[420px] h-dvh bg-bg shadow-2xl flex flex-col border-border sm:border-l">
+      <div className="relative w-full sm:max-w-[420px] h-dvh max-w-full min-w-0 overflow-hidden bg-bg shadow-2xl flex flex-col border-border sm:border-l">
         <div className="bg-brand px-5 py-4.5 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-[38px] h-[38px] rounded-full bg-white/[0.16] border border-white/40 flex items-center justify-center text-cream">
@@ -95,7 +95,7 @@ export function PrinceChatPanel({
           </button>
         </div>
 
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4.5 py-4 flex flex-col gap-3.5">
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4.5 py-4 flex flex-col gap-3.5">
           {messages.length === 0 && (
             <div className="flex flex-col gap-2 mt-2">
               <div className="text-[12.5px] font-bold text-muted mb-1">Try asking:</div>
@@ -116,8 +116,8 @@ export function PrinceChatPanel({
               key={i}
               className={
                 m.role === "user"
-                  ? "self-end max-w-[82%] bg-brand text-cream px-3.5 py-2.5 rounded-[14px] rounded-br-[3px] text-[13.5px] font-semibold leading-snug"
-                  : "self-start max-w-[88%] bg-white border border-border px-3.5 py-2.5 rounded-[14px] rounded-bl-[3px] text-[13.5px] font-semibold leading-relaxed whitespace-pre-wrap"
+                  ? "self-end max-w-[82%] bg-brand text-cream px-3.5 py-2.5 rounded-[14px] rounded-br-[3px] text-[13.5px] font-semibold leading-snug break-words"
+                  : "self-start max-w-[88%] bg-white border border-border px-3.5 py-2.5 rounded-[14px] rounded-bl-[3px] text-[13.5px] font-semibold leading-relaxed whitespace-pre-wrap break-words"
               }
             >
               {m.content}
@@ -140,7 +140,7 @@ export function PrinceChatPanel({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder={signedIn ? "Ask Prince about Work & Pay or your bikes…" : "Ask Prince about Work & Pay…"}
-            className="flex-1 text-[13.5px] font-semibold px-3.5 py-2.5 border border-border-input rounded-full bg-bg text-ink focus:outline-none focus:border-[#1f6b45]"
+            className="flex-1 min-w-0 text-[16px] sm:text-[13.5px] font-semibold px-3.5 py-2.5 border border-border-input rounded-full bg-bg text-ink focus:outline-none focus:border-[#1f6b45]"
           />
           <button
             type="submit"
