@@ -6,7 +6,12 @@ import { formatDateLong, formatGHS } from "@/lib/format";
 import { getPaymentRowDisplay } from "@/lib/status";
 import type { Payment } from "@/lib/types";
 
-type ActionKind = "paid" | "missed";
+type ActionKind = "paid" | "undo";
+
+const ACTION_ENDPOINT: Record<ActionKind, string> = {
+  paid: "/api/payments/mark-paid",
+  undo: "/api/payments/undo-missed",
+};
 
 export function PaymentScheduleTable({ bikeId, payments }: { bikeId: string; payments: Payment[] }) {
   const router = useRouter();
@@ -15,15 +20,11 @@ export function PaymentScheduleTable({ bikeId, payments }: { bikeId: string; pay
   const [submitting, setSubmitting] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const earliestOutstandingWeek = payments.find(
-    (p) => p.status === "pending" || p.status === "missed"
-  )?.weekNumber;
-
   async function commitAction(weekNumber: number, kind: ActionKind, reason: string | null) {
     setSubmitting(weekNumber);
     setError(null);
     try {
-      const response = await fetch(`/api/payments/mark-${kind}`, {
+      const response = await fetch(ACTION_ENDPOINT[kind], {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ bikeId, weekNumber, reason }),
@@ -51,27 +52,27 @@ export function PaymentScheduleTable({ bikeId, payments }: { bikeId: string; pay
     }
   }
 
-  function handleMarkMissedClick(payment: Payment) {
+  function handleUndoClick(payment: Payment) {
     setError(null);
     setReasonText("");
-    setPendingAction({ weekNumber: payment.weekNumber, kind: "missed" });
+    setPendingAction({ weekNumber: payment.weekNumber, kind: "undo" });
   }
 
   const rows = payments.map((payment) => {
-    const isEarliest = payment.weekNumber === earliestOutstandingWeek;
+    const isEarliest = payment.weekNumber === payments.find((p) => p.status === "pending" || p.status === "missed")?.weekNumber;
     const display = getPaymentRowDisplay(payment, isEarliest);
     const isPendingRow = pendingAction?.weekNumber === payment.weekNumber;
-    // "Mark missed" is only offered on the current due row, before it's
-    // actually overdue -- once it's already missed there's nothing left to mark.
-    const canMarkMissed = isEarliest && display.statusLabel === "Due now";
-    return { payment, display, isPendingRow, canMarkMissed };
+    // Weeks past due are flagged missed automatically by the daily sweep, so
+    // undoing a wrongly-recorded strike is the only manual action left here.
+    const canUndo = payment.missedDate !== null;
+    return { payment, display, isPendingRow, canUndo };
   });
 
   return (
     <div className="mb-7">
       {/* Mobile: stacked cards */}
       <div className="flex flex-col gap-3 sm:hidden">
-        {rows.map(({ payment, display, isPendingRow, canMarkMissed }) => (
+        {rows.map(({ payment, display, isPendingRow, canUndo }) => (
           <div key={payment.weekNumber} className="bg-white border border-border rounded-xl p-4">
             <div className="flex items-center justify-between gap-2 flex-wrap mb-2.5">
               <span className="text-[13.5px] font-extrabold">
@@ -85,64 +86,78 @@ export function PaymentScheduleTable({ bikeId, payments }: { bikeId: string; pay
                   {display.statusLabel}
                 </span>
                 {display.wasMissed && (
-                <span
-                  className="text-xs font-extrabold px-2.5 py-1 rounded-full "
-                  style={{ background: "var(--color-status-flagged-bg)", color: "var(--color-status-flagged-fg)" }}
-                >
-                  Missed
-                </span>
-              )}
+                  <span
+                    className="text-xs font-extrabold px-2.5 py-1 rounded-full"
+                    style={{ background: "var(--color-status-flagged-bg)", color: "var(--color-status-flagged-fg)" }}
+                  >
+                    Missed
+                  </span>
+                )}
               </span>
             </div>
 
-            <div className="text-[13px] font-semibold text-muted mb-3">{formatGHS(payment.amountDue)}</div>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="text-[13px] font-semibold text-muted">{formatGHS(payment.amountDue)}</div>
+              {canUndo && !isPendingRow && (
+                <button
+                  onClick={() => handleUndoClick(payment)}
+                  disabled={submitting === payment.weekNumber}
+                  className="text-[12px] font-bold text-muted hover:text-ink underline cursor-pointer disabled:opacity-50"
+                >
+                  Undo strike
+                </button>
+              )}
+            </div>
 
-            {(display.showMark || canMarkMissed) && !isPendingRow && (
-              <div className="flex items-center gap-2">
-                {display.showMark && (
+            {display.showMark && !isPendingRow && (
+              <button
+                onClick={() => handleMarkPaidClick(payment)}
+                disabled={submitting === payment.weekNumber}
+                className="w-full bg-[#1f6b45] hover:opacity-85 text-white rounded-[7px] px-3.5 py-2 font-bold text-[12.5px] cursor-pointer disabled:opacity-50"
+              >
+                {submitting === payment.weekNumber ? "Saving…" : "Mark paid"}
+              </button>
+            )}
+
+            {isPendingRow && pendingAction && pendingAction.kind === "undo" && (
+              <div className="flex flex-col gap-2 bg-bg border border-border rounded-lg px-3 py-2.5">
+                <div className="text-[12.5px] font-semibold text-muted">
+                  This removes the grace strike for week {payment.weekNumber}. The payment record itself
+                  won&apos;t change.
+                </div>
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={() => handleMarkPaidClick(payment)}
+                    onClick={() => commitAction(payment.weekNumber, "undo", null)}
                     disabled={submitting === payment.weekNumber}
-                    className="flex-1 bg-[#1f6b45] hover:opacity-85 text-white rounded-[7px] px-3.5 py-2 font-bold text-[12.5px] cursor-pointer disabled:opacity-50"
+                    className="flex-1 bg-[#1f6b45] text-white rounded-md px-3 py-1.5 font-bold text-[12.5px] cursor-pointer disabled:opacity-50"
                   >
-                    {submitting === payment.weekNumber ? "Saving…" : "Mark paid"}
+                    {submitting === payment.weekNumber ? "Saving…" : "Confirm"}
                   </button>
-                )}
-                {canMarkMissed && (
                   <button
-                    onClick={() => handleMarkMissedClick(payment)}
-                    disabled={submitting === payment.weekNumber}
-                    className="flex-1 bg-white border border-[#e0b4af] hover:bg-status-flagged-bg text-[#a3271f] rounded-[7px] px-3.5 py-2 font-bold text-[12.5px] cursor-pointer disabled:opacity-50"
+                    onClick={() => setPendingAction(null)}
+                    className="text-muted font-bold text-[12.5px] cursor-pointer px-2"
                   >
-                    Mark missed
+                    Cancel
                   </button>
-                )}
+                </div>
               </div>
             )}
 
-            {isPendingRow && pendingAction && (
+            {isPendingRow && pendingAction && pendingAction.kind === "paid" && (
               <div className="flex flex-col gap-2 bg-bg border border-border rounded-lg px-3 py-2.5">
                 <input
                   autoFocus
                   type="text"
                   value={reasonText}
                   onChange={(e) => setReasonText(e.target.value)}
-                  placeholder={
-                    pendingAction.kind === "missed"
-                      ? "Reason this week was missed (optional)"
-                      : "Reason for the missed week (optional)"
-                  }
+                  placeholder="Reason for the missed week (optional)"
                   className="w-full text-[13px] font-semibold bg-white border border-border-input rounded-md px-2.5 py-1.5 focus:outline-none focus:border-[#1f6b45]"
                 />
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => commitAction(payment.weekNumber, pendingAction.kind, reasonText.trim() || null)}
+                    onClick={() => commitAction(payment.weekNumber, "paid", reasonText.trim() || null)}
                     disabled={submitting === payment.weekNumber}
-                    className={
-                      pendingAction.kind === "missed"
-                        ? "flex-1 bg-[#a3271f] text-white rounded-md px-3 py-1.5 font-bold text-[12.5px] cursor-pointer disabled:opacity-50"
-                        : "flex-1 bg-[#1f6b45] text-white rounded-md px-3 py-1.5 font-bold text-[12.5px] cursor-pointer disabled:opacity-50"
-                    }
+                    className="flex-1 bg-[#1f6b45] text-white rounded-md px-3 py-1.5 font-bold text-[12.5px] cursor-pointer disabled:opacity-50"
                   >
                     Confirm
                   </button>
@@ -171,7 +186,7 @@ export function PaymentScheduleTable({ bikeId, payments }: { bikeId: string; pay
               <div></div>
             </div>
 
-            {rows.map(({ payment, display, isPendingRow, canMarkMissed }) => (
+            {rows.map(({ payment, display, isPendingRow, canUndo }) => (
               <div
                 key={payment.weekNumber}
                 className="grid grid-cols-[60px_1.2fr_1fr_1fr_230px] px-5 py-3 border-t border-hairline items-center text-sm hover:bg-bg"
@@ -187,13 +202,13 @@ export function PaymentScheduleTable({ bikeId, payments }: { bikeId: string; pay
                     {display.statusLabel}
                   </span>
                   {display.wasMissed && (
-                <span
-                  className="text-xs font-extrabold px-2.5 py-1 rounded-full "
-                  style={{ background: "var(--color-status-flagged-bg)", color: "var(--color-status-flagged-fg)" }}
-                >
-                  Missed
-                </span>
-              )}
+                    <span
+                      className="text-xs font-extrabold px-2.5 py-1 rounded-full"
+                      style={{ background: "var(--color-status-flagged-bg)", color: "var(--color-status-flagged-fg)" }}
+                    >
+                      Missed
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   {display.showMark && !isPendingRow && (
@@ -205,39 +220,53 @@ export function PaymentScheduleTable({ bikeId, payments }: { bikeId: string; pay
                       {submitting === payment.weekNumber ? "Saving…" : "Mark paid"}
                     </button>
                   )}
-                  {canMarkMissed && !isPendingRow && (
+                  {canUndo && !isPendingRow && (
                     <button
-                      onClick={() => handleMarkMissedClick(payment)}
+                      onClick={() => handleUndoClick(payment)}
                       disabled={submitting === payment.weekNumber}
-                      className="bg-white border border-[#e0b4af] hover:bg-status-flagged-bg text-[#a3271f] rounded-[7px] px-3.5 py-1.5 font-bold text-[12.5px] cursor-pointer disabled:opacity-50"
+                      className="text-[12px] font-bold text-muted hover:text-ink underline cursor-pointer disabled:opacity-50"
                     >
-                      Mark missed
+                      Undo strike
                     </button>
                   )}
                 </div>
 
-                {isPendingRow && pendingAction && (
+                {isPendingRow && pendingAction && pendingAction.kind === "undo" && (
+                  <div className="col-span-5 mt-2.5 -mb-1 flex items-center gap-2 bg-bg border border-border rounded-lg px-3 py-2.5">
+                    <div className="flex-1 text-[12.5px] font-semibold text-muted">
+                      This removes the grace strike for week {payment.weekNumber}. The payment record
+                      itself won&apos;t change.
+                    </div>
+                    <button
+                      onClick={() => commitAction(payment.weekNumber, "undo", null)}
+                      disabled={submitting === payment.weekNumber}
+                      className="bg-[#1f6b45] text-white rounded-md px-3 py-1.5 font-bold text-[12.5px] cursor-pointer disabled:opacity-50"
+                    >
+                      {submitting === payment.weekNumber ? "Saving…" : "Confirm"}
+                    </button>
+                    <button
+                      onClick={() => setPendingAction(null)}
+                      className="text-muted font-bold text-[12.5px] cursor-pointer px-1"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+
+                {isPendingRow && pendingAction && pendingAction.kind === "paid" && (
                   <div className="col-span-5 mt-2.5 -mb-1 flex items-center gap-2 bg-bg border border-border rounded-lg px-3 py-2.5">
                     <input
                       autoFocus
                       type="text"
                       value={reasonText}
                       onChange={(e) => setReasonText(e.target.value)}
-                      placeholder={
-                        pendingAction.kind === "missed"
-                          ? "Reason this week was missed (optional)"
-                          : "Reason for the missed week (optional)"
-                      }
+                      placeholder="Reason for the missed week (optional)"
                       className="flex-1 text-[13px] font-semibold bg-white border border-border-input rounded-md px-2.5 py-1.5 focus:outline-none focus:border-[#1f6b45]"
                     />
                     <button
-                      onClick={() => commitAction(payment.weekNumber, pendingAction.kind, reasonText.trim() || null)}
+                      onClick={() => commitAction(payment.weekNumber, "paid", reasonText.trim() || null)}
                       disabled={submitting === payment.weekNumber}
-                      className={
-                        pendingAction.kind === "missed"
-                          ? "bg-[#a3271f] text-white rounded-md px-3 py-1.5 font-bold text-[12.5px] cursor-pointer disabled:opacity-50"
-                          : "bg-[#1f6b45] text-white rounded-md px-3 py-1.5 font-bold text-[12.5px] cursor-pointer disabled:opacity-50"
-                      }
+                      className="bg-[#1f6b45] text-white rounded-md px-3 py-1.5 font-bold text-[12.5px] cursor-pointer disabled:opacity-50"
                     >
                       Confirm
                     </button>

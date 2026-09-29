@@ -218,30 +218,28 @@ export async function markPaymentPaid(
 }
 
 /**
- * Manually flags the current-due payment as missed, ahead of the automatic
- * overdue sweep -- lets the admin record a grace strike immediately instead
- * of waiting for the next daily run. Only valid for a payment that isn't
- * already paid.
+ * Clears a wrongly-recorded strike -- e.g. the admin marked a week missed (or
+ * was late to mark it paid) by their own mistake, not the rider's. Removes
+ * missedDate/madeUpDate/reason so the week no longer counts toward grace.
+ * If the week hasn't actually been paid yet, it reverts to pending rather
+ * than staying flagged missed.
  */
-export async function markPaymentMissed(
-  bikeId: string,
-  weekNumber: number,
-  reason: string | null,
-  demo: boolean
-): Promise<void> {
+export async function undoMissedPayment(bikeId: string, weekNumber: number, demo: boolean): Promise<void> {
   await assertBikeInScope(bikeId, demo);
   const paymentRef = paymentsCol(bikeId, demo).doc(String(weekNumber));
   const paymentDoc = await paymentRef.get();
   if (!paymentDoc.exists) throw new Error("Payment not found");
 
   const payment = paymentFromDoc(paymentDoc.data()!);
-  if (payment.status === "paid") throw new Error("This week has already been paid");
+  if (payment.missedDate === null && payment.status !== "missed") {
+    throw new Error("This week was never marked missed");
+  }
 
-  const todayISO = toISODate(new Date());
   await paymentRef.update({
-    status: "missed",
-    missedDate: payment.missedDate ?? todayISO,
-    reason: reason ?? payment.reason,
+    missedDate: null,
+    madeUpDate: null,
+    reason: null,
+    ...(payment.status === "missed" ? { status: "pending" } : {}),
   });
 
   const bikeDoc = await bikesCol(demo).doc(bikeId).get();
@@ -251,15 +249,10 @@ export async function markPaymentMissed(
   const payments = paymentsSnap.docs.map((p) => paymentFromDoc(p.data()));
   const plan = planSweep(bike, payments, new Date());
 
-  const batch = adminDb.batch();
-  for (const update of plan.paymentUpdates) {
-    batch.update(paymentsCol(bikeId, demo).doc(String(update.weekNumber)), update.patch);
-  }
-  batch.update(bikesCol(demo).doc(bikeId), {
+  await bikesCol(demo).doc(bikeId).update({
     missedCount: plan.newMissedCount,
     status: plan.newStatus,
   });
-  await batch.commit();
 }
 
 export interface SweepResult {

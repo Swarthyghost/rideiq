@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isDemoUser, requireApiUser } from "@/lib/session";
-import { markPaymentMissed } from "@/lib/firebase/bikes-admin";
+import { undoMissedPayment } from "@/lib/firebase/bikes-admin";
 
 export async function POST(request: Request) {
   const user = await requireApiUser();
@@ -9,17 +9,16 @@ export async function POST(request: Request) {
   const body = await request.json();
   const bikeId = String(body.bikeId ?? "");
   const weekNumber = Number(body.weekNumber);
-  const reason = body.reason ? String(body.reason).trim() : null;
 
   if (!bikeId || !Number.isInteger(weekNumber) || weekNumber <= 0) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
   try {
-    await markPaymentMissed(bikeId, weekNumber, reason, isDemoUser(user));
+    await undoMissedPayment(bikeId, weekNumber, isDemoUser(user));
     return NextResponse.json({ ok: true });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to mark payment missed";
+    const message = err instanceof Error ? err.message : "Failed to undo the missed strike";
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
