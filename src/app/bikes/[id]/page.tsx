@@ -47,8 +47,8 @@ export default async function BikeDetailPage({
       >
         {repossessed && (
           <div className="mb-5 rounded-xl border border-border bg-panel px-4 py-3 text-[13.5px] font-bold text-[#3a3630]">
-            Bike repossessed. This profile is closed: its payments and balance are void and aren&apos;t counted in
-            your dashboard or return on investment.
+            Bike repossessed. This profile is closed: the remaining balance is void. What the rider already paid
+            stays in your collected totals.
           </div>
         )}
         <BikeDetailHeader bike={bike} status={status} grace={grace} />
@@ -58,7 +58,7 @@ export default async function BikeDetailPage({
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 bg-white border border-border rounded-xl px-5 sm:px-5.5 py-4.5 mb-7">
           <SummaryItem label="Weekly payment" value={formatGHS(bike.weeklyAmount)} />
           <SummaryItem label="Total contract" value={formatGHS(bike.totalValue)} />
-          <SummaryItem label="Amount paid" value={repossessed ? "Void" : formatGHS(amountPaid)} color="var(--color-status-ok-fg)" />
+          <SummaryItem label="Amount paid" value={formatGHS(amountPaid)} color="var(--color-status-ok-fg)" />
           <SummaryItem label="Amount left" value={repossessed ? "Void" : formatGHS(amountLeft)} color="#3a3630" />
           <SummaryItem label="Start date" value={formatDateLong(bike.startDate)} />
           <SummaryItem label="Schedule" value={`${bike.numPayments} weekly payments`} />

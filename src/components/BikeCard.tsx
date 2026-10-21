@@ -42,7 +42,7 @@ export function BikeCard({ bike }: { bike: BikeWithPayments }) {
       <div>
         <div className="flex justify-between text-[11.5px] sm:text-[12.5px] font-bold text-muted mb-1.5 gap-2">
           <span>{paid} of {bike.numPayments} paid</span>
-          <span className="text-right">{liveStatus === "repossessed" ? "Void" : `${formatGHS(paidAmt)} / ${formatGHS(bike.totalValue)}`}</span>
+          <span className="text-right">{liveStatus === "repossessed" ? `${formatGHS(paidAmt)} collected` : `${formatGHS(paidAmt)} / ${formatGHS(bike.totalValue)}`}</span>
         </div>
         <ProgressBar pct={pct} color={status.barColor} />
       </div>

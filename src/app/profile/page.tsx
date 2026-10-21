@@ -13,11 +13,10 @@ export default async function ProfilePage() {
   const demo = isDemoUser(user);
   const [profile, bikes] = await Promise.all([getOwnerProfile(user.uid), listBikesWithPayments(demo)]);
 
-  // Repossessed bikes are void: no ROI, and excluded from every total below.
-  const rows = bikes.map((bike) => ({
-    bike,
-    roi: bike.status === "repossessed" ? null : computeRoi(bike.capitalInvested, bike.payments),
-  }));
+  const rows = bikes.map((bike) => ({ bike, roi: computeRoi(bike.capitalInvested, bike.payments) }));
+  // A repossessed bike's contract is void, so its final return is just what it actually paid.
+  const returnOf = (bike: (typeof bikes)[number], collected: number) =>
+    bike.status === "repossessed" ? collected : bike.totalValue;
   const tracked = rows.filter((r) => r.roi !== null);
 
   const totalCapital = tracked.reduce((s, r) => s + r.roi!.capital, 0);
@@ -25,7 +24,7 @@ export default async function ProfilePage() {
   const portfolioRoi = totalCapital > 0 ? ((totalRevenue - totalCapital) / totalCapital) * 100 : null;
 
   // Full contract value each rider has agreed to pay -- what the capital is expected to return.
-  const totalExpected = tracked.reduce((s, r) => s + r.bike.totalValue, 0);
+  const totalExpected = tracked.reduce((s, r) => s + returnOf(r.bike, r.roi!.revenue), 0);
   const expectedRoi = totalCapital > 0 ? ((totalExpected - totalCapital) / totalCapital) * 100 : null;
   const expectedRoiOf = (capital: number, expected: number) => ((expected - capital) / capital) * 100;
 
@@ -84,7 +83,8 @@ export default async function ProfilePage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {rows.map(({ bike, roi }) => {
-              const expected = roi ? expectedRoiOf(roi.capital, bike.totalValue) : null;
+              const closed = bike.status === "repossessed";
+              const expected = roi ? expectedRoiOf(roi.capital, returnOf(bike, roi.revenue)) : null;
               const recovered = roi ? Math.min(100, Math.max(0, roi.recoveredPercent)) : 0;
               return (
                 <Link
@@ -103,10 +103,16 @@ export default async function ProfilePage() {
                         <div className="text-[22px] leading-none font-extrabold" style={{ color: roiColor(expected) }}>
                           {formatPercent(expected)}
                         </div>
-                        <div className="text-[11px] font-semibold text-muted mt-1">expected ROI</div>
+                        <div className="text-[11px] font-semibold text-muted mt-1">{closed ? "final ROI" : "expected ROI"}</div>
                       </div>
                     )}
                   </div>
+
+                  {closed && (
+                    <div className="mt-3 text-[12px] font-bold text-muted">
+                      Repossessed — the remaining balance is void; only what was paid counts.
+                    </div>
+                  )}
 
                   {roi ? (
                     <>
@@ -116,8 +122,8 @@ export default async function ProfilePage() {
                           {formatGHS(roi.capital)}
                         </div>
                         <div>
-                          <div className="text-[11.5px] text-muted">Total return</div>
-                          {formatGHS(bike.totalValue)}
+                          <div className="text-[11.5px] text-muted">{closed ? "Final return" : "Total return"}</div>
+                          {formatGHS(returnOf(bike, roi.revenue))}
                         </div>
                         <div>
                           <div className="text-[11.5px] text-muted">Collected</div>
@@ -133,7 +139,7 @@ export default async function ProfilePage() {
                     </>
                   ) : (
                     <div className="mt-4 text-[13px] font-semibold text-muted-2">
-                      {bike.status === "repossessed" ? "Repossessed — closed and not counted in your totals" : "Capital not set — add it under Edit terms"}
+                      Capital not set — add it under Edit terms
                     </div>
                   )}
                 </Link>

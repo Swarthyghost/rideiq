@@ -24,11 +24,12 @@ export default async function DashboardPage() {
     (d) => d.liveStatus === "active" || d.liveStatus === "repossession_flagged"
   ).length;
 
-  // A repossessed bike's account is closed: its figures are void and left out of every total.
+  // A repossessed bike is closed: what it still owed is void, but money it already paid
+  // stays in the collected totals.
   const counted = bikes.filter((bike) => bike.status !== "repossessed");
 
   const now = new Date();
-  const collectedThisMonth = counted.reduce((sum, bike) => {
+  const collectedThisMonth = bikes.reduce((sum, bike) => {
     const monthPaid = bike.payments
       .filter((p) => {
         if (p.status !== "paid" || !p.paidDate) return false;
@@ -39,7 +40,7 @@ export default async function DashboardPage() {
     return sum + monthPaid;
   }, 0);
 
-  const totalCollected = counted.reduce((sum, bike) => sum + collectedTotal(bike.payments), 0);
+  const totalCollected = bikes.reduce((sum, bike) => sum + collectedTotal(bike.payments), 0);
   const totalLeft = counted.reduce((sum, bike) => sum + outstandingTotal(bike.payments), 0);
 
   const inGraceZone = derived.filter(
