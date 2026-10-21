@@ -14,7 +14,16 @@ const ACTION_ENDPOINT: Record<ActionKind, string> = {
   reject: "/api/payments/reject-report",
 };
 
-export function PaymentScheduleTable({ bikeId, payments }: { bikeId: string; payments: Payment[] }) {
+export function PaymentScheduleTable({
+  bikeId,
+  payments,
+  locked = false,
+}: {
+  bikeId: string;
+  payments: Payment[];
+  /** A repossessed bike's schedule is read-only: nothing can be marked paid or approved. */
+  locked?: boolean;
+}) {
   const router = useRouter();
   const [pendingAction, setPendingAction] = useState<{ weekNumber: number; kind: ActionKind } | null>(null);
   const [reasonText, setReasonText] = useState("");
@@ -67,7 +76,7 @@ export function PaymentScheduleTable({ bikeId, payments }: { bikeId: string; pay
     // Weeks past due are flagged missed automatically by the daily sweep, so
     // undoing a wrongly-recorded strike is the only manual action left here.
     const canUndo = payment.missedDate !== null;
-    return { payment, display, isPendingRow, canUndo };
+    return { payment, display: locked ? { ...display, showMark: false } : display, isPendingRow, canUndo: canUndo && !locked };
   });
 
   return (

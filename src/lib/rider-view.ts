@@ -49,6 +49,7 @@ export interface RiderView {
   graceAllowance: number;
   flagged: boolean;
   status: BikeStatus;
+  repossessed: boolean;
   payments: RiderPaymentRow[];
   missedLog: RiderMissedEntry[];
 }
@@ -76,7 +77,7 @@ export function buildRiderView(bike: BikeWithPayments): RiderView {
       dueDate: p.dueDate,
       amountDue: p.amountDue,
       state,
-      canReport: open && !reported && (overdue || p.weekNumber === currentWeek),
+      canReport: open && !reported && status !== "repossessed" && (overdue || p.weekNumber === currentWeek),
       canWithdraw: open && reported,
     };
   });
@@ -98,6 +99,7 @@ export function buildRiderView(bike: BikeWithPayments): RiderView {
     graceAllowance: bike.graceAllowance,
     flagged: grace.flagged,
     status,
+    repossessed: status === "repossessed",
     payments,
     missedLog: bike.payments
       .filter((p) => p.missedDate !== null)

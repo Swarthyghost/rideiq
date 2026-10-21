@@ -35,13 +35,22 @@ export default async function BikeDetailPage({
   const grace = computeGraceStatus(missedCount, bike.graceAllowance);
   const amountPaid = collectedTotal(bike.payments);
   const amountLeft = outstandingTotal(bike.payments);
+  const repossessed = bike.status === "repossessed";
 
   return (
     <div className="flex-1 flex flex-col">
       {demo && <DemoBanner />}
       <BackNav />
 
-      <div className="px-4 sm:px-10 py-6 sm:py-8 pb-14 max-w-[1100px] w-full mx-auto">
+      <div
+        className={`px-4 sm:px-10 py-6 sm:py-8 pb-14 max-w-[1100px] w-full mx-auto ${repossessed ? "grayscale" : ""}`}
+      >
+        {repossessed && (
+          <div className="mb-5 rounded-xl border border-border bg-panel px-4 py-3 text-[13.5px] font-bold text-[#3a3630]">
+            Bike repossessed. This profile is closed: its payments and balance are void and aren&apos;t counted in
+            your dashboard or return on investment.
+          </div>
+        )}
         <BikeDetailHeader bike={bike} status={status} grace={grace} />
 
         <DocumentsRow bikeId={bike.id} hasIdDoc={!!bike.idDocUrl} hasContractDoc={!!bike.contractDocUrl} />
@@ -49,13 +58,13 @@ export default async function BikeDetailPage({
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 bg-white border border-border rounded-xl px-5 sm:px-5.5 py-4.5 mb-7">
           <SummaryItem label="Weekly payment" value={formatGHS(bike.weeklyAmount)} />
           <SummaryItem label="Total contract" value={formatGHS(bike.totalValue)} />
-          <SummaryItem label="Amount paid" value={formatGHS(amountPaid)} color="var(--color-status-ok-fg)" />
-          <SummaryItem label="Amount left" value={formatGHS(amountLeft)} color="#3a3630" />
+          <SummaryItem label="Amount paid" value={repossessed ? "Void" : formatGHS(amountPaid)} color="var(--color-status-ok-fg)" />
+          <SummaryItem label="Amount left" value={repossessed ? "Void" : formatGHS(amountLeft)} color="#3a3630" />
           <SummaryItem label="Start date" value={formatDateLong(bike.startDate)} />
           <SummaryItem label="Schedule" value={`${bike.numPayments} weekly payments`} />
         </div>
 
-        <PaymentScheduleTable bikeId={bike.id} payments={bike.payments} />
+        <PaymentScheduleTable bikeId={bike.id} payments={bike.payments} locked={repossessed} />
 
         <MissedPaymentLog payments={bike.payments} />
       </div>

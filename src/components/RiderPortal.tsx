@@ -132,12 +132,17 @@ export function RiderPortal({ token, view }: { token: string; view: RiderView })
   }
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className={`flex-1 flex flex-col ${view.repossessed ? "grayscale" : ""}`}>
       <nav className="bg-brand px-4 sm:px-10 py-4">
         <div className="max-w-[640px] mx-auto text-cream font-extrabold text-[17px]">RiderIQ · My payments</div>
       </nav>
 
       <div className="px-4 py-6 pb-24 max-w-[640px] w-full mx-auto flex flex-col gap-5">
+        {view.repossessed && (
+          <div className="rounded-xl border border-border bg-panel px-4 py-3 text-[13.5px] font-bold">
+            Your bike has been taken back and this account is closed. Please contact the owner on WhatsApp.
+          </div>
+        )}
         <div className="flex items-center gap-4">
           {view.hasPhoto ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -224,6 +229,8 @@ export function RiderPortal({ token, view }: { token: string; view: RiderView })
           </div>
         </div>
 
+        {!view.repossessed && (
+          <>
         <div className="bg-white border border-border rounded-2xl p-5">
           <div className="text-[13px] font-bold text-muted mb-3">How to pay</div>
           <div className="text-[12px] font-semibold text-muted">Account name</div>
@@ -262,6 +269,9 @@ export function RiderPortal({ token, view }: { token: string; view: RiderView })
             </div>
           )}
         </div>
+
+          </>
+        )}
 
         <details className="bg-white border border-border rounded-2xl">
           <summary className="px-5 py-4 text-[14.5px] font-extrabold cursor-pointer">All my payments</summary>

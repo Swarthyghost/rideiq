@@ -26,7 +26,8 @@ async function findBike(idOrRiderName: string, demo: boolean): Promise<BikeWithP
 
 export async function getTotalCollected(args: { period?: "all" | "this_month" }, demo: boolean) {
   const period = args.period ?? "all";
-  const bikes = await listBikesWithPayments(demo);
+  // Repossessed bikes are void and left out of every total, matching the dashboard.
+  const bikes = (await listBikesWithPayments(demo)).filter((b) => b.status !== "repossessed");
   const now = new Date();
 
   let total = 0;
@@ -54,7 +55,7 @@ export async function getTotalCollected(args: { period?: "all" | "this_month" },
  * after a weekly-payment edit changes the rate partway through a schedule.
  */
 export async function getTotalOutstanding(demo: boolean) {
-  const bikes = await listBikesWithPayments(demo);
+  const bikes = (await listBikesWithPayments(demo)).filter((b) => b.status !== "repossessed");
 
   let totalOutstanding = 0;
   const perBike = bikes.map((bike) => {

@@ -21,7 +21,7 @@ export function BikeCard({ bike }: { bike: BikeWithPayments }) {
   return (
     <Link
       href={`/bikes/${bike.id}`}
-      className="card bg-white border border-border rounded-[14px] p-4 sm:p-5 flex flex-col gap-3 sm:gap-3.5 transition-all hover:shadow-[0_6px_18px_rgba(28,42,36,0.10)] hover:-translate-y-px cursor-pointer"
+      className={`card bg-white border border-border rounded-[14px] p-4 sm:p-5 flex flex-col gap-3 sm:gap-3.5 transition-all hover:shadow-[0_6px_18px_rgba(28,42,36,0.10)] hover:-translate-y-px cursor-pointer ${bike.status === "repossessed" ? "grayscale" : ""}`}
     >
       <div className="flex items-start justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
@@ -42,7 +42,7 @@ export function BikeCard({ bike }: { bike: BikeWithPayments }) {
       <div>
         <div className="flex justify-between text-[11.5px] sm:text-[12.5px] font-bold text-muted mb-1.5 gap-2">
           <span>{paid} of {bike.numPayments} paid</span>
-          <span className="text-right">{formatGHS(paidAmt)} / {formatGHS(bike.totalValue)}</span>
+          <span className="text-right">{liveStatus === "repossessed" ? "Void" : `${formatGHS(paidAmt)} / ${formatGHS(bike.totalValue)}`}</span>
         </div>
         <ProgressBar pct={pct} color={status.barColor} />
       </div>

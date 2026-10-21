@@ -324,6 +324,7 @@ export async function reportPaymentByRider(
   const payment = bike.payments.find((p) => p.weekNumber === weekNumber);
   if (!payment) throw new Error("Payment not found");
   if (payment.status === "paid") throw new Error("This payment is already confirmed");
+  if (bike.status === "repossessed" && action === "report") throw new Error("This account is closed. Please contact the owner.");
 
   const ref = paymentsCol(found.doc.id, found.demo).doc(String(weekNumber));
 

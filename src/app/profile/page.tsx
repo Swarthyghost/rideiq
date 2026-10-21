@@ -13,7 +13,11 @@ export default async function ProfilePage() {
   const demo = isDemoUser(user);
   const [profile, bikes] = await Promise.all([getOwnerProfile(user.uid), listBikesWithPayments(demo)]);
 
-  const rows = bikes.map((bike) => ({ bike, roi: computeRoi(bike.capitalInvested, bike.payments) }));
+  // Repossessed bikes are void: no ROI, and excluded from every total below.
+  const rows = bikes.map((bike) => ({
+    bike,
+    roi: bike.status === "repossessed" ? null : computeRoi(bike.capitalInvested, bike.payments),
+  }));
   const tracked = rows.filter((r) => r.roi !== null);
 
   const totalCapital = tracked.reduce((s, r) => s + r.roi!.capital, 0);
@@ -86,7 +90,7 @@ export default async function ProfilePage() {
                 <Link
                   key={bike.id}
                   href={`/bikes/${bike.id}`}
-                  className="bg-white border border-border rounded-2xl p-5 hover:border-[#d8d3c4] transition-colors"
+                  className={`bg-white border border-border rounded-2xl p-5 hover:border-[#d8d3c4] transition-colors ${bike.status === "repossessed" ? "grayscale" : ""}`}
                 >
                   <div className="flex items-center gap-3">
                     <Avatar name={bike.riderName} photoUrl={bike.riderPhotoUrl} size={40} />
@@ -129,7 +133,7 @@ export default async function ProfilePage() {
                     </>
                   ) : (
                     <div className="mt-4 text-[13px] font-semibold text-muted-2">
-                      Capital not set — add it under Edit terms
+                      {bike.status === "repossessed" ? "Repossessed — closed and not counted in your totals" : "Capital not set — add it under Edit terms"}
                     </div>
                   )}
                 </Link>
