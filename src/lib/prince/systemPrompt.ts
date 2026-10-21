@@ -2,6 +2,8 @@ export interface PromptOptions {
   /** True when the caller has a session (real or demo) and the ledger tools are available. */
   signedIn: boolean;
   demo: boolean;
+  /** True on a rider's own page: Prince may use only that one rider's own account tool. */
+  rider?: boolean;
   /** Formatted policy chunks retrieved for this question; empty when nothing matched. */
   context: string;
 }
@@ -27,7 +29,15 @@ const POLICY_RULES = `POLICY QUESTIONS (how Work & Pay works: payments, grace ru
 - A late payment means not paying on the exact due day (due Monday, paid Tuesday is late). It counts as a strike even if paid the next day, and paying it later does not erase the strike. The third late payment means the motorcycle is repossessed.
 - Keep answers short: usually 2-5 sentences, or a short list when there are several steps.`;
 
-function accountRules({ signedIn, demo }: Pick<PromptOptions, "signedIn" | "demo">): string {
+const RIDER_RULES = `ACCOUNT QUESTIONS: The person is a rider on their own payment page, asking about THEIR OWN account. Use the getMyAccount tool for anything about their balance, what they have paid, their next payment, their due dates or their late payments, and never state those from memory. Use simple words and short sentences, Write money with commas like "GHS 16,000" and dates in words like "Tuesday 29 September 2026", never as 2026-09-29.
+- You know nothing about any other rider, the owner's business, collections, totals or investments. If asked about anyone else or about the business, politely say you can only help with their own account and the Work & Pay policies. Never guess.
+- Never say or repeat this rider's phone number, PIN, link or documents.
+- You cannot mark payments. To report a payment they have made, tell them to tap "I've paid" on their page, and that the owner will confirm it.
+- If "waitingForOwnerApproval" has items, say that payment is waiting for the owner to confirm, not that it is paid.
+- Late payments: the rider is allowed no more than three. The third late payment means the bike is taken back. Be kind but clear when they are close to the limit.`;
+
+function accountRules({ signedIn, demo, rider }: Pick<PromptOptions, "signedIn" | "demo" | "rider">): string {
+  if (rider) return RIDER_RULES;
   if (!signedIn) {
     return `ACCOUNT QUESTIONS: The person is not signed in and you have no tools. You cannot look up any rider, balance, payment, phone number, ID or contract. If asked, say you can only explain the general policies, and that account questions need signing in or contacting RideIQ support. Never guess or make up personal data.`;
   }

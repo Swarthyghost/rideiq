@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ZoomableAvatar } from "@/components/ZoomableAvatar";
 import { StatusPill } from "@/components/StatusPill";
 import { EditTermsModal } from "@/components/EditTermsModal";
+import { RiderLinkModal } from "@/components/RiderLinkModal";
 import { GraceIndicator } from "@/components/GraceIndicator";
 import type { StatusDisplay } from "@/lib/status";
 import type { GraceStatus } from "@/lib/payments";
@@ -19,6 +20,7 @@ export function BikeDetailHeader({
   grace: GraceStatus;
 }) {
   const [editing, setEditing] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   return (
     <>
@@ -36,6 +38,12 @@ export function BikeDetailHeader({
         <div className="flex items-center gap-3">
           <StatusPill status={status} />
           <button
+            onClick={() => setSharing(true)}
+            className="bg-white border border-border-input rounded-lg px-4 py-2 font-bold text-[13.5px] text-[#3a3630] cursor-pointer hover:bg-panel"
+          >
+            Rider link
+          </button>
+          <button
             onClick={() => setEditing(true)}
             className="bg-white border border-border-input rounded-lg px-4 py-2 font-bold text-[13.5px] text-[#3a3630] cursor-pointer hover:bg-panel"
           >
@@ -47,6 +55,7 @@ export function BikeDetailHeader({
       <GraceIndicator grace={grace} />
 
       {editing && <EditTermsModal bike={bike} onClose={() => setEditing(false)} />}
+      {sharing && <RiderLinkModal bike={bike} onClose={() => setSharing(false)} />}
     </>
   );
 }

@@ -1,10 +1,11 @@
 import { isDemoUser, requireSessionUser } from "@/lib/session";
 import { listBikesWithPayments } from "@/lib/firebase/bikes-admin";
-import { collectedTotal, computeLiveMissedCount, computeLiveStatus, outstandingTotal } from "@/lib/payments";
+import { collectedTotal, computeLiveMissedCount, computeLiveStatus, isPastDue, outstandingTotal } from "@/lib/payments";
 import { formatGHS } from "@/lib/format";
 import { DemoBanner } from "@/components/DemoBanner";
 import { Navbar } from "@/components/Navbar";
 import { StatCard } from "@/components/StatCard";
+import { PendingApprovals, type PendingApproval } from "@/components/PendingApprovals";
 import { BikeCard } from "@/components/BikeCard";
 
 export default async function DashboardPage() {
@@ -50,6 +51,23 @@ export default async function DashboardPage() {
     completed: 3,
   };
 
+  const pending: PendingApproval[] = bikes
+    .flatMap((bike) =>
+      bike.payments
+        .filter((p) => p.status !== "paid" && p.reportedPaidDate !== null)
+        .map((p) => ({
+          bikeId: bike.id,
+          riderName: bike.riderName,
+          riderPhotoUrl: bike.riderPhotoUrl,
+          weekNumber: p.weekNumber,
+          amount: p.amountDue,
+          dueDate: p.dueDate,
+          reportedDate: p.reportedPaidDate!,
+          late: p.status === "missed" || isPastDue(p.dueDate, now),
+        }))
+    )
+    .sort((a, b) => a.reportedDate.localeCompare(b.reportedDate));
+
   const sorted = [...derived].sort((a, b) => {
     const weightDiff = statusWeight[a.liveStatus] - statusWeight[b.liveStatus];
     if (weightDiff !== 0) return weightDiff;
@@ -62,6 +80,8 @@ export default async function DashboardPage() {
       <Navbar />
 
       <div className="px-4 sm:px-10 py-6 sm:py-9 pb-16 sm:pb-14 flex-1">
+        <PendingApprovals items={pending} />
+
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4.5 mb-8 sm:mb-9">
           <StatCard label="Active bikes" value={String(activeBikes)} />
           <StatCard label="Collected this month" value={formatGHS(collectedThisMonth)} />

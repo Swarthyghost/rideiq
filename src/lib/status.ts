@@ -114,6 +114,15 @@ export function getPaymentRowDisplay(
   }
 
   const overdue = payment.status === "missed" || isPastDue(payment.dueDate, new Date());
+  if (payment.reportedPaidDate !== null) {
+    return {
+      statusLabel: "Awaiting approval",
+      bg: "#e6eefa",
+      fg: "#1f4f8f",
+      showMark: true,
+      wasMissed: overdue || payment.missedDate !== null,
+    };
+  }
   if (overdue) {
     return { statusLabel: "Missed", bg: "var(--color-status-flagged-bg)", fg: "var(--color-status-flagged-fg)", showMark: true, wasMissed: false };
   }

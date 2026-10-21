@@ -6,11 +6,12 @@ import { formatDateLong, formatGHS } from "@/lib/format";
 import { getPaymentRowDisplay } from "@/lib/status";
 import type { Payment } from "@/lib/types";
 
-type ActionKind = "paid" | "undo";
+type ActionKind = "paid" | "undo" | "reject";
 
 const ACTION_ENDPOINT: Record<ActionKind, string> = {
   paid: "/api/payments/mark-paid",
   undo: "/api/payments/undo-missed",
+  reject: "/api/payments/reject-report",
 };
 
 export function PaymentScheduleTable({ bikeId, payments }: { bikeId: string; payments: Payment[] }) {
@@ -42,7 +43,8 @@ export function PaymentScheduleTable({ bikeId, payments }: { bikeId: string; pay
   }
 
   function handleMarkPaidClick(payment: Payment) {
-    const overdue = payment.status === "missed";
+    // A rider-reported payment is simply approved; no reason prompt needed.
+    const overdue = payment.status === "missed" && payment.reportedPaidDate === null;
     if (overdue) {
       setError(null);
       setReasonText("");
@@ -110,13 +112,24 @@ export function PaymentScheduleTable({ bikeId, payments }: { bikeId: string; pay
             </div>
 
             {display.showMark && !isPendingRow && (
-              <button
-                onClick={() => handleMarkPaidClick(payment)}
-                disabled={submitting === payment.weekNumber}
-                className="w-full bg-[#1f6b45] hover:opacity-85 text-white rounded-[7px] px-3.5 py-2 font-bold text-[12.5px] cursor-pointer disabled:opacity-50"
-              >
-                {submitting === payment.weekNumber ? "Saving…" : "Mark paid"}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleMarkPaidClick(payment)}
+                  disabled={submitting === payment.weekNumber}
+                  className="flex-1 bg-[#1f6b45] hover:opacity-85 text-white rounded-[7px] px-3.5 py-2 font-bold text-[12.5px] cursor-pointer disabled:opacity-50"
+                >
+                  {submitting === payment.weekNumber ? "Saving…" : payment.reportedPaidDate ? "Approve" : "Mark paid"}
+                </button>
+                {payment.reportedPaidDate && (
+                  <button
+                    onClick={() => commitAction(payment.weekNumber, "reject", null)}
+                    disabled={submitting === payment.weekNumber}
+                    className="flex-1 bg-white border border-[#e0b4af] hover:bg-status-flagged-bg text-[#a3271f] rounded-[7px] px-3.5 py-2 font-bold text-[12.5px] cursor-pointer disabled:opacity-50"
+                  >
+                    Not received
+                  </button>
+                )}
+              </div>
             )}
 
             {isPendingRow && pendingAction && pendingAction.kind === "undo" && (
@@ -217,7 +230,16 @@ export function PaymentScheduleTable({ bikeId, payments }: { bikeId: string; pay
                       disabled={submitting === payment.weekNumber}
                       className="bg-[#1f6b45] hover:opacity-85 text-white rounded-[7px] px-3.5 py-1.5 font-bold text-[12.5px] cursor-pointer disabled:opacity-50"
                     >
-                      {submitting === payment.weekNumber ? "Saving…" : "Mark paid"}
+                      {submitting === payment.weekNumber ? "Saving…" : payment.reportedPaidDate ? "Approve" : "Mark paid"}
+                    </button>
+                  )}
+                  {display.showMark && !isPendingRow && payment.reportedPaidDate && (
+                    <button
+                      onClick={() => commitAction(payment.weekNumber, "reject", null)}
+                      disabled={submitting === payment.weekNumber}
+                      className="bg-white border border-[#e0b4af] hover:bg-status-flagged-bg text-[#a3271f] rounded-[7px] px-3 py-1.5 font-bold text-[12.5px] cursor-pointer disabled:opacity-50"
+                    >
+                      Not received
                     </button>
                   )}
                   {canUndo && !isPendingRow && (

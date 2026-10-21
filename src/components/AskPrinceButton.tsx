@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { SparkleIcon } from "@/components/icons";
 import { useAuth } from "@/lib/firebase/auth-context";
 import { PrinceChatPanel } from "@/components/PrinceChatPanel";
@@ -8,6 +9,7 @@ import { PrinceChatPanel } from "@/components/PrinceChatPanel";
 export function AskPrinceButton() {
   const [open, setOpen] = useState(false);
   const { user } = useAuth();
+  const riderToken = usePathname().match(/^\/r\/([A-Za-z0-9_-]{20,64})/)?.[1] ?? null;
 
   return (
     <>
@@ -19,7 +21,7 @@ export function AskPrinceButton() {
         <SparkleIcon size={20} />
         <span className="hidden sm:inline">Ask Prince</span>
       </button>
-      <PrinceChatPanel open={open} onClose={() => setOpen(false)} signedIn={Boolean(user)} />
+      <PrinceChatPanel open={open} onClose={() => setOpen(false)} signedIn={Boolean(user)} riderToken={riderToken} />
     </>
   );
 }

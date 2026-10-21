@@ -21,6 +21,7 @@ export function generateSchedule(
       madeUpDate: null,
       reason: null,
       missedDate: null,
+      reportedPaidDate: null,
     });
   }
   return payments;

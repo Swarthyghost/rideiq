@@ -1,4 +1,5 @@
 import "server-only";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
 import { generateSchedule, isPastDue, planSweep } from "@/lib/payments";
@@ -20,6 +21,7 @@ function paymentFromDoc(data: FirebaseFirestore.DocumentData): Payment {
     madeUpDate: data.madeUpDate ?? null,
     reason: data.reason ?? null,
     missedDate: data.missedDate ?? null,
+    reportedPaidDate: data.reportedPaidDate ?? null,
   };
 }
 
@@ -194,6 +196,7 @@ export async function markPaymentPaid(
   await paymentRef.update({
     status: "paid",
     paidDate: todayISO,
+    reportedPaidDate: null,
     ...(wasMissed
       ? {
           madeUpDate: todayISO,
@@ -215,6 +218,148 @@ export async function markPaymentPaid(
     missedCount: plan.newMissedCount,
     status: plan.newStatus,
   });
+}
+
+// ---------------------------------------------------------------------------
+// Rider self-service page: secret link + phone-digit PIN, no account needed.
+// ---------------------------------------------------------------------------
+
+const TOKEN_RE = /^[A-Za-z0-9_-]{20,64}$/;
+const MAX_PIN_TRIES = 5;
+const PIN_LOCK_MS = 15 * 60 * 1000;
+
+export function pinFromPhone(phone: string): string | null {
+  const digits = phone.replace(/\D/g, "");
+  return digits.length >= 4 ? digits.slice(-4) : null;
+}
+
+async function bikeDocByToken(token: string) {
+  if (!TOKEN_RE.test(token)) return null;
+  for (const demo of [false, true]) {
+    const snap = await bikesCol(demo).where("riderToken", "==", token).limit(1).get();
+    if (!snap.empty) return { doc: snap.docs[0], demo };
+  }
+  return null;
+}
+
+export async function findBikeByRiderToken(token: string): Promise<BikeWithPayments | null> {
+  const found = await bikeDocByToken(token);
+  if (!found) return null;
+  return getBikeWithPayments(found.doc.id, found.demo);
+}
+
+/** Returns the rider's link token, creating it on first use. `regenerate` retires the old link. */
+export async function ensureRiderToken(
+  bikeId: string,
+  demo: boolean,
+  regenerate: boolean
+): Promise<{ token: string; pin: string | null }> {
+  const ref = bikesCol(demo).doc(bikeId);
+  const doc = await ref.get();
+  if (!doc.exists) throw new Error("Bike not found");
+  const data = doc.data()!;
+
+  let token = data.riderToken as string | undefined;
+  if (!token || regenerate) {
+    token = randomBytes(24).toString("base64url");
+    await ref.update({ riderToken: token, riderPinFailures: 0, riderPinLockedUntil: 0 });
+  }
+  return { token, pin: pinFromPhone(String(data.riderPhone ?? "")) };
+}
+
+export type PinResult =
+  | { ok: true }
+  | { ok: false; reason: "not-found" | "no-phone" }
+  | { ok: false; reason: "locked"; minutesLeft: number }
+  | { ok: false; reason: "wrong"; triesLeft: number };
+
+/** Checks the last 4 phone digits. Five wrong tries lock the link for 15 minutes. */
+export async function checkRiderPin(token: string, pin: string): Promise<PinResult> {
+  const found = await bikeDocByToken(token);
+  if (!found) return { ok: false, reason: "not-found" };
+
+  const data = found.doc.data();
+  const expected = pinFromPhone(String(data.riderPhone ?? ""));
+  if (!expected) return { ok: false, reason: "no-phone" };
+
+  const now = Date.now();
+  const lockedUntil = Number(data.riderPinLockedUntil ?? 0);
+  if (lockedUntil > now) {
+    return { ok: false, reason: "locked", minutesLeft: Math.ceil((lockedUntil - now) / 60000) };
+  }
+
+  const given = pin.replace(/\D/g, "");
+  const correct = given.length === expected.length && timingSafeEqual(Buffer.from(given), Buffer.from(expected));
+  const failures = Number(data.riderPinFailures ?? 0);
+
+  if (correct) {
+    if (failures > 0) await found.doc.ref.update({ riderPinFailures: 0 });
+    return { ok: true };
+  }
+
+  const next = failures + 1;
+  if (next >= MAX_PIN_TRIES) {
+    await found.doc.ref.update({ riderPinFailures: 0, riderPinLockedUntil: now + PIN_LOCK_MS });
+    return { ok: false, reason: "locked", minutesLeft: Math.ceil(PIN_LOCK_MS / 60000) };
+  }
+  await found.doc.ref.update({ riderPinFailures: next });
+  return { ok: false, reason: "wrong", triesLeft: MAX_PIN_TRIES - next };
+}
+
+/**
+ * A rider reporting (or withdrawing) a payment. This never marks anything paid --
+ * it only flags the week for the owner to approve. Lateness is still decided by
+ * the date the owner approves, exactly as with Mark paid.
+ */
+export async function reportPaymentByRider(
+  token: string,
+  weekNumber: number,
+  action: "report" | "cancel"
+): Promise<void> {
+  const found = await bikeDocByToken(token);
+  if (!found) throw new Error("This link is not valid");
+  const bike = await getBikeWithPayments(found.doc.id, found.demo);
+  if (!bike) throw new Error("This link is not valid");
+
+  const payment = bike.payments.find((p) => p.weekNumber === weekNumber);
+  if (!payment) throw new Error("Payment not found");
+  if (payment.status === "paid") throw new Error("This payment is already confirmed");
+
+  const ref = paymentsCol(found.doc.id, found.demo).doc(String(weekNumber));
+
+  if (action === "cancel") {
+    if (payment.reportedPaidDate === null) throw new Error("Nothing to withdraw");
+    await ref.update({ reportedPaidDate: null });
+    return;
+  }
+
+  if (payment.reportedPaidDate !== null) throw new Error("Already sent to the owner");
+
+  const currentWeek = bike.payments.find((p) => p.status !== "paid")?.weekNumber;
+  const reportable = payment.weekNumber === currentWeek || payment.status === "missed" || isPastDue(payment.dueDate, new Date());
+  if (!reportable) throw new Error("This payment isn't due yet");
+
+  await ref.update({ reportedPaidDate: toISODate(new Date()) });
+}
+
+/** Owner rejects a rider's "I've paid" report (money not received). */
+export async function rejectPaymentReport(bikeId: string, weekNumber: number, demo: boolean): Promise<void> {
+  await assertBikeInScope(bikeId, demo);
+  const ref = paymentsCol(bikeId, demo).doc(String(weekNumber));
+  const doc = await ref.get();
+  if (!doc.exists) throw new Error("Payment not found");
+  if (doc.data()!.status === "paid") throw new Error("This payment is already paid");
+  await ref.update({ reportedPaidDate: null });
+}
+
+/** Permanently removes a rider's profile and its whole payment schedule. */
+export async function deleteBike(bikeId: string, demo: boolean): Promise<void> {
+  await assertBikeInScope(bikeId, demo);
+  const payments = await paymentsCol(bikeId, demo).get();
+  const batch = adminDb.batch();
+  payments.docs.forEach((p) => batch.delete(p.ref));
+  batch.delete(bikesCol(demo).doc(bikeId));
+  await batch.commit();
 }
 
 /**
@@ -364,6 +509,7 @@ export async function resetDemoData(): Promise<void> {
       startDaysAgo: 56,
       paidWeeks: [1, 2, 3, 4, 5, 6, 7, 8],
       missedWeeks: [] as number[],
+      reportedWeeks: [9],
     },
     {
       bikeModel: "Royal 125",
@@ -375,6 +521,7 @@ export async function resetDemoData(): Promise<void> {
       startDaysAgo: 42,
       paidWeeks: [1, 2, 3, 5],
       missedWeeks: [4],
+      reportedWeeks: [] as number[],
     },
   ];
 
@@ -407,6 +554,8 @@ export async function resetDemoData(): Promise<void> {
           paidDate: payment.dueDate,
           ...(madeUp ? { madeUpDate: payment.dueDate } : {}),
         });
+      } else if (rider.reportedWeeks.includes(payment.weekNumber)) {
+        batch.update(doc.ref, { reportedPaidDate: toISODate(new Date()) });
       } else if (rider.missedWeeks.includes(payment.weekNumber)) {
         batch.update(doc.ref, {
           status: "missed",

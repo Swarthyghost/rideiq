@@ -15,6 +15,13 @@ const POLICY_SUGGESTIONS = [
   "When do I own the bike?",
 ];
 
+const RIDER_SUGGESTIONS = [
+  "How much do I still owe?",
+  "When is my next payment?",
+  "How many late payments have I used?",
+  "What happens if I pay late?",
+];
+
 const LEDGER_SUGGESTIONS = [
   "How much have we made so far?",
   "Who's in the grace zone?",
@@ -25,12 +32,18 @@ export function PrinceChatPanel({
   open,
   onClose,
   signedIn,
+  riderToken,
 }: {
   open: boolean;
   onClose: () => void;
   signedIn: boolean;
+  riderToken?: string | null;
 }) {
-  const suggestions = signedIn ? [...POLICY_SUGGESTIONS.slice(0, 2), ...LEDGER_SUGGESTIONS.slice(0, 2)] : POLICY_SUGGESTIONS;
+  const suggestions = riderToken
+    ? RIDER_SUGGESTIONS
+    : signedIn
+      ? [...POLICY_SUGGESTIONS.slice(0, 2), ...LEDGER_SUGGESTIONS.slice(0, 2)]
+      : POLICY_SUGGESTIONS;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -53,7 +66,7 @@ export function PrinceChatPanel({
       const response = await fetch("/api/prince", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: nextMessages }),
+        body: JSON.stringify({ messages: nextMessages, riderToken }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Something went wrong");
@@ -139,7 +152,7 @@ export function PrinceChatPanel({
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={signedIn ? "Ask Prince about Work & Pay or your bikes…" : "Ask Prince about Work & Pay…"}
+            placeholder={riderToken ? "Ask Prince about your payments…" : signedIn ? "Ask Prince about Work & Pay or your bikes…" : "Ask Prince about Work & Pay…"}
             className="flex-1 min-w-0 text-[16px] sm:text-[13.5px] font-semibold px-3.5 py-2.5 border border-border-input rounded-full bg-bg text-ink focus:outline-none focus:border-[#1f6b45]"
           />
           <button

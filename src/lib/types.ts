@@ -41,6 +41,8 @@ export interface Payment {
   reason: string | null;
   /** The date the payment was auto-flagged missed, if ever */
   missedDate: string | null;
+  /** ISO date the rider tapped "I've paid" on their page; cleared when the owner approves or rejects it */
+  reportedPaidDate: string | null;
 }
 
 export interface BikeWithPayments extends Bike {

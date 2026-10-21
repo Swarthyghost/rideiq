@@ -5,6 +5,10 @@ import { isDemoUser, requireApiUser } from "@/lib/session";
 import { buildSystemPrompt } from "@/lib/prince/systemPrompt";
 import { formatContext, retrieve } from "@/lib/prince/retrieval";
 import { princeTools, publicPrinceTools, callPrinceTool } from "@/lib/prince/tools";
+import { callRiderTool, riderPrinceTools } from "@/lib/prince/rider-tools";
+import { findBikeByRiderToken } from "@/lib/firebase/bikes-admin";
+import { hasRiderAccess } from "@/lib/rider-access";
+import type { BikeWithPayments } from "@/lib/types";
 
 const MODEL = "openai/gpt-oss-120b";
 const MAX_TOOL_ROUNDS = 6;
@@ -36,8 +40,22 @@ export async function POST(request: Request) {
   const user = await requireApiUser();
   const demo = user ? isDemoUser(user) : false;
 
+  const body = (await request.json()) as { messages: ChatMessage[]; riderToken?: unknown };
+
+  // On a rider's own page Prince switches to rider mode: only that rider's own
+  // account is reachable, and only after they passed the PIN check in this browser.
+  let riderBike: BikeWithPayments | null = null;
+  if (typeof body.riderToken === "string" && (await hasRiderAccess(body.riderToken))) {
+    riderBike = await findBikeByRiderToken(body.riderToken);
+  }
+
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
-  if (rateLimited(user ? `user:${user.uid}` : `ip:${ip}`)) {
+  const limiterKey = riderBike
+    ? `rider:${riderBike.id}`
+    : user
+      ? `user:${user.uid}`
+      : `ip:${ip}`;
+  if (rateLimited(limiterKey)) {
     return NextResponse.json({ error: "Too many questions. Please wait a few minutes." }, { status: 429 });
   }
 
@@ -46,7 +64,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Prince is not configured (missing GROQ_API_KEY)." }, { status: 500 });
   }
 
-  const { messages } = (await request.json()) as { messages: ChatMessage[] };
+  const { messages } = body;
   if (!Array.isArray(messages) || messages.length === 0 || messages.length > MAX_MESSAGES) {
     return NextResponse.json({ error: "Missing messages" }, { status: 400 });
   }
@@ -65,7 +83,7 @@ export async function POST(request: Request) {
   const groq = new Groq({ apiKey });
 
   const history: ChatCompletionMessageParam[] = [
-    { role: "system", content: buildSystemPrompt({ signedIn: Boolean(user), demo, context }) },
+    { role: "system", content: buildSystemPrompt({ signedIn: Boolean(user) || Boolean(riderBike), demo, rider: Boolean(riderBike), context }) },
     ...messages.map((m): ChatCompletionMessageParam => ({ role: m.role, content: m.content })),
   ];
 
@@ -76,7 +94,7 @@ export async function POST(request: Request) {
         response = await groq.chat.completions.create({
           model: MODEL,
           max_tokens: 1024,
-          tools: user ? princeTools : publicPrinceTools,
+          tools: riderBike ? riderPrinceTools : user ? princeTools : publicPrinceTools,
           messages: history,
         });
       } catch (err) {
@@ -110,9 +128,11 @@ export async function POST(request: Request) {
           } catch {
             // Leave args empty if the model produced malformed JSON.
           }
-          const result = user || call.function.name === "calculateInvestment"
-            ? await callPrinceTool(call.function.name, args, demo)
-            : { error: "Not signed in" };
+          const result = riderBike
+            ? await callRiderTool(call.function.name, args, riderBike)
+            : user || call.function.name === "calculateInvestment"
+              ? await callPrinceTool(call.function.name, args, demo)
+              : { error: "Not signed in" };
           return {
             role: "tool" as const,
             tool_call_id: call.id,

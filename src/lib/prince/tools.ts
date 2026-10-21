@@ -176,7 +176,7 @@ export async function getWeeksRemaining(args: { bikeIdOrRiderName: string }, dem
 // Groq's chat-completions API is OpenAI-compatible: each tool is
 // { type: "function", function: { name, description, parameters } },
 // where `parameters` is a JSON Schema object.
-const calculateInvestmentTool = {
+export const calculateInvestmentTool = {
   type: "function" as const,
   function: {
     name: "calculateInvestment",
@@ -293,6 +293,16 @@ export const princeTools = [
     },
   },
 ];
+
+export function callPublicTool(name: string, input: Record<string, unknown>) {
+  if (name !== "calculateInvestment") return { error: "That isn't available here." };
+  const clean = (v: unknown) => (v === null || v === undefined || v === "" ? undefined : v);
+  return calculateInvestment({
+    bikes: clean(input.bikes) as InvestmentInput["bikes"],
+    amount: clean(input.amount) as InvestmentInput["amount"],
+    startDate: clean(input.startDate) as InvestmentInput["startDate"],
+  });
+}
 
 export async function callPrinceTool(name: string, input: Record<string, unknown>, demo: boolean) {
   switch (name) {

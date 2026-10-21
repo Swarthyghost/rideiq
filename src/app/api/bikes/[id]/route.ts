@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isDemoUser, requireApiUser } from "@/lib/session";
-import { updateBikeTerms } from "@/lib/firebase/bikes-admin";
+import { deleteBike, updateBikeTerms } from "@/lib/firebase/bikes-admin";
 
 export async function PATCH(
   request: Request,
@@ -58,4 +58,21 @@ export async function PATCH(
   }, isDemoUser(user));
 
   return NextResponse.json({ ok: true });
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const user = await requireApiUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await params;
+  try {
+    await deleteBike(id, isDemoUser(user));
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to delete this profile";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
 }

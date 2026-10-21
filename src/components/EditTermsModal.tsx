@@ -26,6 +26,8 @@ export function EditTermsModal({ bike, onClose }: { bike: Bike; onClose: () => v
   const [totalValue, setTotalValue] = useState(String(bike.totalValue));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const [riderPhotoFile, setRiderPhotoFile] = useState<File | null>(null);
   const [riderPhotoPreview, setRiderPhotoPreview] = useState<string | null>(bike.riderPhotoUrl);
@@ -45,6 +47,20 @@ export function EditTermsModal({ bike, onClose }: { bike: Bike; onClose: () => v
     if (!file) return;
     setRiderPhotoFile(file);
     setRiderPhotoPreview(URL.createObjectURL(file));
+  }
+
+  async function handleDelete() {
+    setDeleting(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/bikes/${bike.id}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("Failed");
+      router.push("/");
+      router.refresh();
+    } catch {
+      setError("Couldn't delete this profile. Try again.");
+      setDeleting(false);
+    }
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -283,6 +299,42 @@ export function EditTermsModal({ bike, onClose }: { bike: Bike; onClose: () => v
         >
           {saving ? "Saving…" : "Save changes"}
         </button>
+
+        <div className="border-t border-hairline pt-4 text-center">
+          {confirmingDelete ? (
+            <div className="flex flex-col gap-2.5">
+              <div className="text-[13px] font-semibold text-[#a3271f]">
+                Delete {bike.riderName}&apos;s profile and all of their payment records? This can&apos;t be undone.
+              </div>
+              <div className="flex items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="bg-[#a3271f] text-white rounded-md px-4 py-2 font-bold text-[13px] cursor-pointer disabled:opacity-50"
+                >
+                  {deleting ? "Deleting…" : "Yes, delete"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmingDelete(false)}
+                  disabled={deleting}
+                  className="text-muted font-bold text-[13px] cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmingDelete(true)}
+              className="text-[13px] font-bold text-[#a3271f] hover:underline cursor-pointer"
+            >
+              Delete this profile
+            </button>
+          )}
+        </div>
       </form>
     </div>
   );
