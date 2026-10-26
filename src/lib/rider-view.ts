@@ -17,6 +17,10 @@ export interface RiderPaymentRow {
   dueDate: string;
   amountDue: number;
   state: RiderRowState;
+  /** ISO date the owner confirmed the payment; null until then. */
+  paidDate: string | null;
+  /** True when this week carried a late-payment strike, even if it has since been paid. */
+  wasLate: boolean;
   canReport: boolean;
   canWithdraw: boolean;
 }
@@ -77,6 +81,8 @@ export function buildRiderView(bike: BikeWithPayments): RiderView {
       dueDate: p.dueDate,
       amountDue: p.amountDue,
       state,
+      paidDate: p.status === "paid" ? p.paidDate : null,
+      wasLate: p.missedDate !== null,
       canReport: open && !reported && status !== "repossessed" && (overdue || p.weekNumber === currentWeek),
       canWithdraw: open && reported,
     };

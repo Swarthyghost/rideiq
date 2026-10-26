@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/Avatar";
+import { RiderStatementModal } from "@/components/RiderStatementModal";
 import { formatDateLong, formatDateShort, formatGHS } from "@/lib/format";
 import { PAYMENT_DETAILS, RIDER_SUPPORT_WHATSAPP_DISPLAY, RIDER_SUPPORT_WHATSAPP_LINK } from "@/lib/rider-portal";
 import type { RiderPaymentRow, RiderRowState, RiderView } from "@/lib/rider-view";
@@ -21,6 +22,7 @@ export function RiderPortal({ token, view }: { token: string; view: RiderView })
   const [busy, setBusy] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [statementOpen, setStatementOpen] = useState(false);
 
   const attention = view.payments.filter((p) => p.canReport || p.canWithdraw);
   const percent = Math.min(100, Math.round((view.paidCount / Math.max(view.numPayments, 1)) * 100));
@@ -299,6 +301,21 @@ export function RiderPortal({ token, view }: { token: string; view: RiderView })
           </div>
         </details>
 
+        <div className="bg-white border border-border rounded-2xl p-5 flex items-center justify-between gap-4">
+          <div>
+            <div className="text-[14.5px] font-extrabold">Account statement</div>
+            <div className="text-[12.5px] font-semibold text-muted mt-0.5">
+              A PDF of what you have paid, week by week.
+            </div>
+          </div>
+          <button
+            onClick={() => setStatementOpen(true)}
+            className="bg-brand text-cream font-bold text-[13.5px] rounded-lg px-4 py-2.5 hover:opacity-90 cursor-pointer flex-shrink-0"
+          >
+            Get statement
+          </button>
+        </div>
+
         {view.missedLog.length > 0 && (
           <div className="bg-white border border-border rounded-2xl p-5">
             <div className="text-[15px] font-extrabold mb-3">Late payment record</div>
@@ -322,6 +339,8 @@ export function RiderPortal({ token, view }: { token: string; view: RiderView })
           , or tap the Prince button to ask.
         </div>
       </div>
+
+      {statementOpen && <RiderStatementModal token={token} onClose={() => setStatementOpen(false)} />}
     </div>
   );
 }
